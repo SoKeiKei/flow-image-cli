@@ -8,10 +8,10 @@ max_retries = 3
 output_dir = "output"
 
 [captcha]
-method = "none" # personal / none
+method = "personal" # personal / none
 personal_headless = false
 personal_timeout = 90
 personal_settle_seconds = 2.0
 
 [debug]
-enabled = false
+enabled = true

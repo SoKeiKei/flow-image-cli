@@ -49,7 +49,7 @@ flow-image-cli/
 ### 1) Install Python dependencies
 
 ```bash
-cd D:\Code\tools\flow-image-cli
+cd flow-image-cli
 pip install -r requirements.txt
 pip install -e .
 ```
@@ -294,6 +294,42 @@ On upscale failure, it automatically downgrades to original image and saves it.
 
 - 401: Usually AT expired, program will auto-refresh and retry
 - 500: Upstream occasional issue, recommend retry or switch model (prefer `gemini-3.1-flash-image-*`)
+
+### Q4: Config file location and method settings not taking effect?
+
+The CLI reads config from `~/.flow-cli/config.toml` (user's home directory), NOT from the project root `config.toml`.
+
+**Solutions:**
+1. Copy your config to the default location:
+   ```bash
+   mkdir -p ~/.flow-cli
+   cp <your-project-path>/config.toml ~/.flow-cli/config.toml
+   ```
+2. Or use environment variable:
+   ```bash
+   export FLOW_CONFIG=/path/to/your/config.toml
+   ```
+
+### Q5: How to update/login with new Session Token?
+
+```bash
+flow-cli login --st "your-new-session-token"
+```
+
+You can get ST from Flow Token browser extension.
+
+### Q6: Playwright/browser issues in personal captcha mode?
+
+1. Install Playwright: `pip install playwright && python -m playwright install chromium`
+2. If browser doesn't open automatically, check if another Chrome instance is using the profile
+3. For headless mode issues, try setting `personal_headless = false` in config
+4. Browser profile is stored at `~/.flow-cli/browser-profile`
+
+### Q7: Image generation succeeded but file not saved?
+
+- Check if output directory exists and is writable
+- Ensure sufficient disk space
+- Check debug logs for more details (set `debug.enabled = true` in config)
 
 ## Security Tips
 

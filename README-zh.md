@@ -41,7 +41,7 @@ flow-image-cli/
 ## 安装
 
 ```bash
-cd D:\Code\tools\flow-image-cli
+cd flow-image-cli
 pip install -r requirements.txt
 pip install -e .
 ```
@@ -213,6 +213,61 @@ async def main():
 
 asyncio.run(main())
 ```
+
+## 常见问题 (FAQ)
+
+### Q1: 如何获取 2K 图片？
+
+使用 `-u 2k` 参数。
+`-u 4k` 需要账户有对应的订阅/权限。
+放大失败时，会自动降级为原图并保存。
+
+### Q2: 遇到 `reCAPTCHA evaluation failed` 错误怎么办？
+
+1. 确保 `captcha.method = "personal"`
+2. 确保已安装 Playwright 和 Chromium
+3. 确保浏览器能访问 Google Flow 并已登录
+
+### Q3: 遇到 401/500 错误怎么办？
+
+- 401：通常是 AT 过期，程序会自动刷新并重试
+- 500：上游服务偶发问题，建议重试或更换模型（推荐使用 `gemini-3.1-flash-image-*`）
+
+### Q4: 配置文件不生效？配置方法设置了但没效果？
+
+CLI 默认从 `~/.flow-cli/config.toml`（用户主目录）读取配置，而非项目根目录的 `config.toml`。
+
+**解决方案：**
+1. 将配置文件复制到默认位置：
+   ```bash
+   mkdir -p ~/.flow-cli
+   cp <你的项目路径>/config.toml ~/.flow-cli/config.toml
+   ```
+2. 或使用环境变量：
+   ```bash
+   export FLOW_CONFIG=/path/to/your/config.toml
+   ```
+
+### Q5: 如何更新/登录新的 Session Token？
+
+```bash
+flow-cli login --st "你的新session-token"
+```
+
+你可以从 Flow Token 浏览器插件获取 ST。
+
+### Q6: personal 验证码模式下 Playwright/浏览器问题？
+
+1. 安装 Playwright：`pip install playwright && python -m playwright install chromium`
+2. 如果浏览器没有自动打开，检查是否有其他 Chrome 实例正在使用该 profile
+3. 如果 headless 模式有问题，尝试在配置中设置 `personal_headless = false`
+4. 浏览器 profile 存储在 `~/.flow-cli/browser-profile`
+
+### Q7: 图片生成成功但文件没保存？
+
+- 检查输出目录是否存在且可写
+- 确保磁盘空间充足
+- 开启 debug 模式查看更多详情（在配置中设置 `debug.enabled = true`）
 
 ## 许可证
 
