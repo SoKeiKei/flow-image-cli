@@ -2,6 +2,7 @@
 本机浏览器 reCAPTCHA token 获取（personal 模式）
 """
 
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -65,10 +66,22 @@ async def get_personal_recaptcha_token(
             await page.goto(url, wait_until="domcontentloaded", timeout=timeout_seconds * 1000)
             await page.wait_for_timeout(int(max(0.0, settle_seconds) * 1000))
 
-            await page.wait_for_function(
-                "typeof grecaptcha !== 'undefined' && typeof grecaptcha.enterprise !== 'undefined' && typeof grecaptcha.enterprise.execute === 'function'",
-                timeout=20000,
-            )
+            deadline = time.monotonic() + 20
+            while True:
+                ready = await page.evaluate(
+                    """
+                    () => Boolean(
+                        globalThis.grecaptcha &&
+                        globalThis.grecaptcha.enterprise &&
+                        typeof globalThis.grecaptcha.enterprise.execute === "function"
+                    )
+                    """
+                )
+                if ready:
+                    break
+                if time.monotonic() >= deadline:
+                    raise Exception("等待 grecaptcha.enterprise.execute 就绪超时")
+                await page.wait_for_timeout(500)
 
             token = await page.evaluate(
                 """
@@ -97,4 +110,3 @@ async def get_personal_recaptcha_token(
             return token
         finally:
             await context.close()
-
