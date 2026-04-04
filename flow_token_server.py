@@ -57,8 +57,14 @@ class TokenHandler(BaseHTTPRequestHandler):
                 except json.JSONDecodeError:
                     pass
 
-            # 更新 session_token
+            # 更新 session_token；若 ST 变化，清理依赖旧账号的缓存字段
+            st_changed = existing_data.get("st") != session_token
             existing_data["st"] = session_token
+            if st_changed:
+                existing_data["at"] = ""
+                existing_data["at_expires"] = ""
+                existing_data["project_id"] = ""
+                existing_data["user_paygate_tier"] = "PAYGATE_TIER_NOT_PAID"
 
             # 保存到文件
             with open(TOKEN_FILE, "w", encoding="utf-8") as f:
@@ -77,6 +83,8 @@ class TokenHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(response, ensure_ascii=False).encode("utf-8"))
 
             print(f"完成: Token 已更新 (长度: {len(session_token)})")
+            if st_changed:
+                print("提示: 检测到 ST 变化，已清空旧 AT/Project 缓存")
 
         except json.JSONDecodeError:
             self.send_error(400, "Invalid JSON")

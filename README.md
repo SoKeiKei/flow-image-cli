@@ -87,6 +87,7 @@ Highly recommended to use the built-in `flow-token-updater` extension to automat
 3. Save config and click "Fetch Now"
 
 After obtaining ST, CLI will automatically use the `st` field from `~/.flow-cli/token.json`.
+When ST changes, cached `at` / `project_id` will be cleared automatically, and a new `Flow CLI Project` will be created on next generation.
 
 ## Configuration
 
@@ -317,6 +318,7 @@ flow-cli login --st "your-new-session-token"
 ```
 
 You can get ST from Flow Token browser extension.
+When ST changes, old `at` / `project_id` cache is cleared automatically to avoid reusing old account project context.
 
 ### Q6: Playwright/browser issues in personal captcha mode?
 

@@ -79,6 +79,7 @@ python flow_token_server.py
 3. 保存并点击“立即获取”
 
 ST 会写入 `~/.flow-cli/token.json`。
+当 ST 发生变化时，会自动清空缓存的 `at` / `project_id`，下次生图会自动创建新的 `Flow CLI Project`。
 
 ## 配置
 
@@ -255,6 +256,7 @@ flow-cli login --st "你的新session-token"
 ```
 
 你可以从 Flow Token 浏览器插件获取 ST。
+当 ST 变化时，旧 `at` / `project_id` 会自动清空，避免复用旧账号项目上下文。
 
 ### Q6: personal 验证码模式下 Playwright/浏览器问题？
 

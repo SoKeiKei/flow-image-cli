@@ -157,10 +157,18 @@ def cmd_credits():
 def cmd_login(st: str):
     """登录"""
     config = get_config()
+    st_changed = config.token.st != st
     config.token.st = st
+    if st_changed:
+        config.token.at = ""
+        config.token.at_expires = ""
+        config.token.project_id = ""
+        config.token.user_paygate_tier = "PAYGATE_TIER_NOT_PAID"
     config.save_token()
     
     print("完成: Session Token 已保存")
+    if st_changed:
+        print("提示: 检测到 ST 变更，已清空旧 AT/Project，后续将自动创建新项目")
     print("\n正在验证 Token...")
     
     try:
