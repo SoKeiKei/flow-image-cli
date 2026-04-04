@@ -265,6 +265,7 @@ flow-cli login --st "你的新session-token"
 
 ### Q7: 图片生成成功但文件没保存？
 
+- 下载阶段已增加自动回退：当 `curl-cffi` 出现 TLS/运行时异常时，会自动改用标准库 `urllib` 下载
 - 检查输出目录是否存在且可写
 - 确保磁盘空间充足
 - 开启 debug 模式查看更多详情（在配置中设置 `debug.enabled = true`）
@@ -272,4 +273,3 @@ flow-cli login --st "你的新session-token"
 ## 许可证
 
 MIT，详见 [LICENSE](./LICENSE)。
-

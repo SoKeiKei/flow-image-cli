@@ -327,6 +327,7 @@ You can get ST from Flow Token browser extension.
 
 ### Q7: Image generation succeeded but file not saved?
 
+- The downloader now auto-falls back to standard-library `urllib` when `curl-cffi` hits TLS/runtime issues
 - Check if output directory exists and is writable
 - Ensure sufficient disk space
 - Check debug logs for more details (set `debug.enabled = true` in config)

@@ -8,6 +8,7 @@ import random
 import time
 import uuid
 import hashlib
+import urllib.request
 from typing import Optional, Dict, Any, List, Tuple
 from pathlib import Path
 
@@ -565,16 +566,49 @@ class ImageGenerator:
 
         return image_url
     
+    async def _download_with_urllib(self, url: str, timeout: int = 60) -> bytes:
+        """使用标准库下载图片，作为稳定回退路径。"""
+
+        def _fetch() -> bytes:
+            with urllib.request.urlopen(url, timeout=timeout) as response:
+                return response.read()
+
+        return await asyncio.to_thread(_fetch)
+
     async def _download_and_save(self, url: str, output_path: str) -> str:
         """下载并保存图片"""
+        image_data: Optional[bytes] = None
+        download_errors: List[str] = []
+
         if HAS_CURL_CFFI:
-            async with AsyncSession() as session:
-                response = await session.get(url, timeout=60, impersonate="chrome110")
-                image_data = response.content
+            try:
+                async with AsyncSession() as session:
+                    response = await session.get(url, timeout=60, impersonate="chrome110")
+                    if response.status_code >= 400:
+                        raise Exception(f"HTTP {response.status_code}")
+                    image_data = response.content
+            except Exception as e:
+                download_errors.append(f"curl-cffi: {e}")
+                if self.config.debug:
+                    print(f"[DEBUG] curl-cffi 下载失败，回退 urllib: {e}")
         else:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=60)) as response:
-                    image_data = await response.read()
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=60)) as response:
+                        if response.status >= 400:
+                            raise Exception(f"HTTP {response.status}")
+                        image_data = await response.read()
+            except Exception as e:
+                download_errors.append(f"aiohttp: {e}")
+                if self.config.debug:
+                    print(f"[DEBUG] aiohttp 下载失败，回退 urllib: {e}")
+
+        if image_data is None:
+            try:
+                image_data = await self._download_with_urllib(url, timeout=60)
+            except Exception as e:
+                download_errors.append(f"urllib: {e}")
+                raise Exception(f"图片下载失败: {'; '.join(download_errors)}")
         
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
