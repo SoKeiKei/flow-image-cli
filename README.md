@@ -26,7 +26,7 @@ The referenced projects cover a broader set of use cases and remain a better fit
 - One `flow-cli` entry point that agents can call without coordinating multiple services
 - Login, image, and video commands under the same CLI
 - Fixed-project reuse for clean, continuous agent conversations
-- Straightforward one-result and minimum-duration requests to avoid unnecessary credit use
+- One result by default and a 4-second video default when no duration is requested
 - A local token receiver and Chrome extension for compatibility with the original image workflow
 
 It is not intended to replace the referenced projects. Its focus is the shorter path from an agent request to a verified local media file.
@@ -34,6 +34,16 @@ It is not intended to replace the referenced projects. Its focus is the shorter 
 ## Installation
 
 Python 3.11+ and Chrome are required.
+
+### Quick agent install
+
+Copy and send this line to an agent:
+
+```text
+Install https://github.com/SoKeiKei/flow-image-cli and check for missing dependencies
+```
+
+### Manual installation
 
 ```bash
 git clone https://github.com/SoKeiKei/flow-image-cli.git
@@ -87,11 +97,23 @@ Paste a request like this into a new agent window:
 Use the local flow-cli and its saved Flow login.
 First run flow-cli auth status and flow-cli project show.
 Reuse the fixed Flow project and do not create a new project.
-Generate exactly one result. Use the minimum 4-second duration for video.
+Generate exactly one result. Use 4 seconds when no video duration is requested; follow the user's requested duration when one is provided.
 Verify that the saved file opens, then return its absolute path.
 
 Request:
 [prompt, reference paths, model, aspect ratio, and output path]
+```
+
+### Ask an agent to create a Skill
+
+After installing this tool, paste the following prompt into an agent window to create and install an automatically triggered Skill:
+
+```text
+Create a Skill named flow-media for the locally installed flow-cli, and install it in a Skill directory discoverable by the current agent.
+Trigger it when I ask to generate images with Gemini/Flow, videos with Veo/Flow, or image-to-video content.
+Before generation, run flow-cli auth status and flow-cli project show. Reuse the fixed project and do not create a new project.
+Generate one result by default. Use 4 seconds when no video duration is requested, and follow the user's requested duration when one is provided. Verify that the output file opens and return its absolute path.
+Validate the Skill, and never store tokens, cookies, or login data in it.
 ```
 
 ## Image generation
@@ -120,7 +142,7 @@ Image aspects: `9:16`, `16:9`, `1:1`, `4:3`, and `3:4`. The default count is one
 
 ## Video generation
 
-These examples generate one video at the minimum 4-second duration:
+These examples generate one video using the 4-second default for requests without a duration. Change `--duration` when the user requests another length:
 
 ```bash
 # Text-to-video

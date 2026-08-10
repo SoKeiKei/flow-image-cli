@@ -26,7 +26,7 @@ v1.2.0 新增了最新图片和视频命令、固定项目、Agent 调用说明�
 - 安装后直接使用 `flow-cli`，Agent 不需要理解多套服务和接口
 - 把登录、图片和视频统一到同一个命令入口
 - 可以固定复用一个 Flow 项目，连续对话生成时不会把项目列表弄乱
-- 默认只生成一个结果，并方便明确指定视频最短时长，减少不必要的额度消耗
+- 默认只生成一个结果；用户未指定时视频使用 4 秒，减少不必要的额度消耗
 - 保留本机 Token 服务和 Chrome 插件，兼容原有图片生成方式
 
 它并不是要替代参考项目，而是更偏向“在 Agent 窗口里说一句，就直接生成并返回文件”的使用方式。
@@ -34,6 +34,16 @@ v1.2.0 新增了最新图片和视频命令、固定项目、Agent 调用说明�
 ## 安装
 
 需要 Python 3.11+ 和 Chrome。
+
+### 让 Agent 快速安装
+
+复制下面这句话发给 Agent：
+
+```text
+帮我安装 https://github.com/SoKeiKei/flow-image-cli 并检测是否缺少依赖
+```
+
+### 手动安装
 
 ```bash
 git clone https://github.com/SoKeiKei/flow-image-cli.git
@@ -89,7 +99,7 @@ flow-cli project clear
 请使用本机 flow-cli 和已经保存的 Flow 登录状态生成内容。
 先运行 flow-cli auth status 和 flow-cli project show。
 必须复用固定 Flow 项目，不要新建项目。
-只生成一个结果；视频使用 4 秒最短时长。
+只生成一个结果；用户未指定视频时长时使用 4 秒，用户指定时按用户要求调整。
 生成后确认文件可以打开，并把绝对路径发给我。
 
 具体要求：
@@ -97,6 +107,18 @@ flow-cli project clear
 ```
 
 如果 Agent 不熟悉命令，也可以把下面对应示例一起发给它。
+
+### 让 Agent 制作成 Skill
+
+安装本工具后，可以直接把下面这段话发给 Agent，让它制作并安装一个可自动调用的 Skill：
+
+```text
+请把本机已经安装的 flow-cli 制作成一个名为 flow-media 的 Skill，并安装到当前 Agent 能发现的 Skill 目录。
+当我说“用 Gemini/Flow 生图”“用 Veo/Flow 生视频”或“图生视频”时自动使用它。
+每次生成前先检查 flow-cli auth status 和 flow-cli project show，必须复用固定项目，不要新建项目。
+默认只生成一个结果；用户未指定视频时长时使用 4 秒，用户指定时按用户要求调整。生成后检查文件可以正常打开，并返回绝对路径。
+请完成 Skill 校验，不要把 Token、Cookie 或登录资料写入 Skill。
+```
 
 ## 图片生成
 
@@ -124,7 +146,7 @@ flow-cli image i2i "保持人物一致，改成冬季雪景" --ref person.jpg --
 
 ## 视频生成
 
-以下示例都只生成 1 个、使用 4 秒最短时长：
+以下示例都只生成 1 个，并演示用户未指定时采用的 4 秒默认时长。用户要求其他时长时，调整 `--duration`：
 
 ```bash
 # 文生视频

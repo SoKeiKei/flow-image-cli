@@ -34,7 +34,7 @@ def main():
   # 最新图片生成
   flow-cli image t2i "电影感的雨夜街道" --model nano2 -o street.png
 
-  # 最短时长视频生成
+  # 用户未指定时采用 4 秒视频
   flow-cli video t2v "薄雾中的竹林" --model omni-flash --duration 4 -o bamboo.mp4
 
   # 文生图
