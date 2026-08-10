@@ -4,14 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flow-cli"
-version = "1.0.0"
-description = "Flow 图片生成命令行工具"
+version = "1.2.0"
+description = "供 Agent 直接调用的 Flow 图片与视频生成命令行工具"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [{name = "Flow CLI"}]
 dependencies = [
     "curl-cffi>=0.7.0",
+    "gflow-cli>=0.53.1,<0.54.0",
     "tomli>=2.0.0",
     "Pillow>=9.0.0",
 ]

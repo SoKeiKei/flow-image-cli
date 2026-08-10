@@ -14,4 +14,4 @@ personal_timeout = 90
 personal_settle_seconds = 2.0
 
 [debug]
-enabled = true
+enabled = false

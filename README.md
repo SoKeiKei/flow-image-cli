@@ -1,97 +1,189 @@
-﻿# Flow Image CLI
+# Flow Image CLI — Beyond Images, Now with Video Generation
 
-Chinese README: [README-zh.md](./README-zh.md)
+中文说明：[README-zh.md](./README-zh.md)
 
-Flow image generation command-line tool, supporting:
+A local CLI for generating Google Flow images and videos directly from a terminal or an agent chat.
 
-- Text-to-image / Image-to-image
-- 2K / 4K upscaling
-- Auto downgrade to original image on upscale failure with guaranteed save
-- Local browser captcha (`personal`)
-- Local token receiver service (works with `flow-token-updater` extension for automatic ST sync)
+## Features
 
-> Project Notes:
-> - This project is inspired by [Flow2API](https://github.com/TheSmallHanCat/flow2api).
-> - `flow-token-updater` is inspired by [Flow2API-Token-Updater](https://github.com/TheSmallHanCat/Flow2API-Token-Updater).
+- Text-to-image, image-to-image, and multi-reference editing
+- Nano Banana 2, Nano Banana Pro, and Imagen 4
+- Text-to-video, image-to-video, first/last-frame video, and reference-to-video
+- Gemini Omni Flash and Veo 3.1
+- Reuse one fixed Flow project instead of creating a project for every task
+- Real Chrome login, plus the original Session Token image workflow
+- Chrome token extension with a prefilled local server URL and health check
+- 2K / 4K image upscaling with original-image fallback
 
-## Project Positioning
+Version 1.2.0 adds the current image/video commands, fixed-project reuse, agent usage instructions, and automatic local defaults in the token extension.
 
-This repository is a lightweight, image-focused implementation for local use:
+> This is an unofficial tool that drives Google Flow web capabilities. Model availability, credits, and page behavior may vary by account, region, and future Flow updates. Generation consumes your Flow credits.
 
-- Focuses on Flow image generation workflow (ST/AT, generate, optional upscale)
-- Designed as CLI + local helper tools, not a full platform service
+## Why this project
 
-## Prerequisites
+The referenced projects cover a broader set of use cases and remain a better fit for platform services or deeper control. This repository intentionally keeps a smaller surface for everyday generation:
 
-- Must be able to sign in to Google Flow: <https://labs.google/fx>
-- Account must have image generation permissions (otherwise cannot generate images)
-- For `-u 4k`, account must have corresponding subscription/permissions (429/quota errors common without permissions)
+- One `flow-cli` entry point that agents can call without coordinating multiple services
+- Login, image, and video commands under the same CLI
+- Fixed-project reuse for clean, continuous agent conversations
+- Straightforward one-result and minimum-duration requests to avoid unnecessary credit use
+- A local token receiver and Chrome extension for compatibility with the original image workflow
 
-## Project Structure
-
-```text
-flow-image-cli/
-├── flow_cli/                # CLI main code
-├── flow-token-updater/      # Browser extension
-├── flow_token_server.py     # Local token receiver service
-├── config.toml              # Config template
-└── README.md
-```
-
-## Environment Requirements
-
-- Python 3.9+
-- Chrome (for extension and personal mode)
-- Access to Google Flow: <https://labs.google/fx>
+It is not intended to replace the referenced projects. Its focus is the shorter path from an agent request to a verified local media file.
 
 ## Installation
 
-### 1) Install Python dependencies
+Python 3.11+ and Chrome are required.
 
 ```bash
+git clone https://github.com/SoKeiKei/flow-image-cli.git
 cd flow-image-cli
-pip install -r requirements.txt
-pip install -e .
+py -m pip install -e .
 ```
 
-### 2) Install Playwright (required for personal captcha mode)
+Verify the installation:
 
 ```bash
-pip install playwright
-python -m playwright install chromium
+flow-cli --help
+flow-cli media-models
 ```
 
-### 3) Start local token receiver service (recommended)
+## Recommended login
+
+Run this once before using the current image or video commands:
+
+```bash
+flow-cli auth login --browser chrome
+```
+
+Complete Google sign-in in the real Chrome window. Later terminal and agent sessions can reuse the saved login.
+
+```bash
+flow-cli auth status
+```
+
+## Reuse one Flow project
+
+Copy the project ID from a Flow project URL and save it once:
+
+```bash
+flow-cli project use <Flow project ID>
+flow-cli project show
+```
+
+`image t2i`, `image i2i`, `video t2v`, `video i2v`, and `video r2v` will then reuse that project by default. An explicit `--project` option overrides the saved project for one command.
+
+```bash
+flow-cli project clear
+```
+
+Clearing the setting does not delete the project in Flow. The setting is stored in `~/.flow-cli/fixed-flow-project.json`; set `FLOW_CLI_HOME` to use another directory.
+
+## Use from an agent chat
+
+Paste a request like this into a new agent window:
+
+```text
+Use the local flow-cli and its saved Flow login.
+First run flow-cli auth status and flow-cli project show.
+Reuse the fixed Flow project and do not create a new project.
+Generate exactly one result. Use the minimum 4-second duration for video.
+Verify that the saved file opens, then return its absolute path.
+
+Request:
+[prompt, reference paths, model, aspect ratio, and output path]
+```
+
+## Image generation
+
+```bash
+# Nano Banana 2
+flow-cli image t2i "cinematic rainy street at night" --model nano2 --aspect 16:9 -n 1 -o output\street.png
+
+# Nano Banana Pro
+flow-cli image t2i "minimal product photography" --model nano-pro --aspect 1:1 -n 1 -o output\product.png
+
+# Imagen 4
+flow-cli image t2i "mountain valley at dawn" --model image4 --aspect 16:9 -n 1 -o output\valley.png
+
+# Multi-reference image editing
+flow-cli image i2i "keep the person consistent and change the scene to winter" --ref person.jpg --ref clothes.jpg --model nano2 -n 1 -o output\winter.png
+```
+
+Image aliases:
+
+- `nano2`: Nano Banana 2, up to 10 references
+- `nano-pro`: Nano Banana Pro, up to 10 references
+- `image4` / `imagen4`: Imagen 4, up to 3 references
+
+Image aspects: `9:16`, `16:9`, `1:1`, `4:3`, and `3:4`. The default count is one; `-n` accepts 1–4.
+
+## Video generation
+
+These examples generate one video at the minimum 4-second duration:
+
+```bash
+# Text-to-video
+flow-cli video t2v "slow push through a misty bamboo forest at dawn" --model omni-flash --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
+
+# Animate a generated image
+flow-cli video i2v output\street.png "rain falls slowly as the camera moves forward" --model veo-lite --duration 4 --count 1 --aspect 16:9 -o output\street.mp4
+
+# First/last-frame transition
+flow-cli video i2v --initial-frame first.png --end-frame last.png "smooth cinematic transition" --model veo-fast --duration 4 --count 1 -o output\transition.mp4
+
+# Reference-to-video
+flow-cli video r2v "the two characters meet in the rain" --ref person-a.png --ref person-b.png --model omni-flash --duration 4 --count 1 -o output\meeting.mp4
+```
+
+Video aliases:
+
+- `omni-flash`: up to 7 references; 4 / 6 / 8 / 10 seconds
+- `veo-lite`: cost-oriented; up to 3 references
+- `veo-fast`: speed-oriented; up to 3 references
+- `veo-quality`: quality-oriented; no reference-to-video support
+- `veo-lite-lp`: lower-priority alias; availability depends on the current Flow UI and account
+
+Veo 3.1 models accept 4 / 6 / 8 seconds. Only `omni-flash` accepts 10 seconds. A `--count` greater than one increases credit usage.
+
+## Original Session Token image workflow
+
+The original `flow-cli gen` command remains available:
+
+```bash
+flow-cli login --st "your-session-token"
+flow-cli models
+flow-cli credits
+flow-cli gen "a cinematic cat in neon city" -o output\cat.png
+flow-cli gen "convert to watercolor" -r input.jpg -u 2k -o output\watercolor.png
+```
+
+`-u` accepts `none`, `2k`, and `4k`. If upscale fails, the original image is saved instead.
+
+## Token extension
+
+The bundled `flow-token-updater` extension syncs the Chrome Flow Session Token to the original image workflow.
+
+Start the local receiver:
 
 ```bash
 python flow_token_server.py
 ```
 
-Default address: `http://127.0.0.1:8765/token`
+The default endpoint is `http://127.0.0.1:8765/token`; health checks use `http://127.0.0.1:8765/health`.
 
-## Recommended Token Flow: flow-token-updater
+To install the extension:
 
-Highly recommended to use the built-in `flow-token-updater` extension to automatically maintain ST, avoiding manual copy/paste.
+1. Open `chrome://extensions/`.
+2. Enable Developer mode.
+3. Click **Load unpacked**.
+4. Select the repository's `flow-token-updater` directory.
 
-### Extension Installation
-
-1. Open `chrome://extensions/`
-2. Enable Developer mode
-3. Click "Load unpacked"
-4. Select: `/flow-image-cli/flow-token-updater`
-
-### Extension Configuration
-
-1. Open extension popup
-2. Set server URL to `http://127.0.0.1:8765/token`
-3. Save config and click "Fetch Now"
-
-After obtaining ST, CLI will automatically use the `st` field from `~/.flow-cli/token.json`.
-When ST changes, cached `at` / `project_id` will be cleared automatically, and a new `Flow CLI Project` will be created on next generation.
+On first install, the extension saves the default endpoint and checks whether the service is online. Edit it only when using a custom address. Tokens are written to `~/.flow-cli/token.json`.
 
 ## Configuration
 
-Config path: `~/.flow-cli/config.toml`
+The original image workflow reads `~/.flow-cli/config.toml`:
 
 ```toml
 [flow]
@@ -104,8 +196,8 @@ max_retries = 3
 output_dir = "output"
 
 [captcha]
-method = "personal" # personal / none
-personal_headless = true
+method = "personal"
+personal_headless = false
 personal_timeout = 90
 personal_settle_seconds = 2.0
 
@@ -113,238 +205,34 @@ personal_settle_seconds = 2.0
 enabled = false
 ```
 
-Token path: `~/.flow-cli/token.json`
-
-## Captcha Mode
-
-Supported `captcha.method` values:
-
-- `personal`: Solve captcha using local browser (requires Playwright)
-- `none`: Do not actively solve captcha (may fail when captcha is required)
-
-This simplified project does not include built-in third-party captcha providers (such as YesCaptcha/CapMonster/Capsolver) by default.
-Default `personal_headless = true` (silent headless, no browser popup); set to `false` only when visual debugging is needed.
-
-## Interactive Script
-
-Provides an interactive Python script for terminal configuration:
+The `personal` captcha mode additionally requires:
 
 ```bash
-python interactive_generate.py
+py -m pip install playwright
+py -m playwright install chromium
 ```
 
-Supports interactive configuration:
+The root `config.toml` is a template. Set `FLOW_CONFIG` to read another path.
 
-- Prompt
-- Model (index or model name)
-- Output path
-- Reference image path
-- Upscale option (`none/2k/4k`)
-- Language mode (`中文 / English / 双语`)
+## Troubleshooting
 
-Default output path uses timestamp template: `output/flow_{timestamp}.png` (auto-expands timestamp to avoid overwriting).
+- Run `flow-cli auth status` and confirm that generation also works in the Google Flow website.
+- Run `flow-cli project show` if tasks still create new projects.
+- Check account credits, output directory permissions, and free disk space.
+- A Flow UI update may require upgrading this project's pinned integration dependency.
 
-## CLI Usage
+## Security
 
-> Usage Notes:
-> - First ensure you can log in to Flow and your account has image generation permissions before running CLI.
-> - `-u 4k` is not available for all accounts; requires corresponding subscription/permissions.
+- Never commit or publish ST, AT, cookies, login profiles, or generation history.
+- Do not expose complete tokens in chat or screenshots.
+- Keep `~/.flow-cli/token.json` and browser login data on the local machine.
+- The extension keeps token history in Chrome local storage; clear it from the popup when no longer needed.
 
-### Login (manual)
+## Credits
 
-```bash
-flow-cli login --st "your-session-token"
-```
-
-### Basic Commands
-
-```bash
-flow-cli models
-flow-cli credits
-flow-cli config
-```
-
-### Text-to-image / Image-to-image
-
-```bash
-# Text-to-image
-flow-cli gen "a cinematic cat in neon city"
-
-# Specify model and output
-flow-cli gen "mountain landscape" -m gemini-3.1-flash-image-landscape -o output\landscape.png
-
-# Image-to-image
-flow-cli gen "convert to watercolor style" -r input.jpg -o output\watercolor.png
-```
-
-### 2K / 4K Upscale
-
-```bash
-# Generate then upscale to 2K
-flow-cli gen "a cat" -m gemini-3.1-flash-image-landscape -u 2k -o output\cat_2k.png
-
-# Generate then upscale to 4K
-flow-cli gen "a cat" -m gemini-3.1-flash-image-landscape -u 4k -o output\cat_4k.png
-```
-
-Parameters:
-
-- `-u, --upscale`: `none` / `2k` / `4k`
-
-Note:
-- When `2k/4k` upscale fails, the program automatically downgrades to original image and saves to `-o` specified path.
-
-## Python API Examples
-
-### 1) Text-to-image
-
-```python
-import asyncio
-from flow_cli.client import ImageGenerator
-
-async def main():
-    g = ImageGenerator()
-    path = await g.generate(
-        prompt="a cinematic cat",
-        model="gemini-3.1-flash-image-landscape",
-        output_path="output/api_basic.png",
-    )
-    print(path)
-
-asyncio.run(main())
-```
-
-### 2) Image-to-image + 2K
-
-```python
-import asyncio
-from pathlib import Path
-from flow_cli.client import ImageGenerator
-
-async def main():
-    g = ImageGenerator()
-    path = await g.generate(
-        prompt="convert to watercolor",
-        model="gemini-3.1-flash-image-landscape",
-        reference_image=Path("input.jpg").read_bytes(),
-        output_path="output/api_img2img_2k.png",
-        upscale="2k",
-    )
-    print(path)
-
-asyncio.run(main())
-```
-
-## Local Token Server API
-
-`flow_token_server.py` provides local HTTP interface for extension or script calls.
-
-### 1) Health check
-
-```bash
-curl http://127.0.0.1:8765/health
-```
-
-Response:
-
-```json
-{"status":"ok"}
-```
-
-### 2) Query current token status
-
-```bash
-curl http://127.0.0.1:8765/token
-```
-
-Response:
-
-```json
-{"has_token": true, "token_length": 2147}
-```
-
-### 3) Write session_token
-
-```bash
-curl -X POST http://127.0.0.1:8765/token ^
-  -H "Content-Type: application/json" ^
-  -d "{\"session_token\":\"your-st-token\"}"
-```
-
-Response:
-
-```json
-{"success":true,"message":"Token saved to ...","token_length":2147}
-```
-
-## FAQ
-
-### Q1: Can I get 2K images?
-
-Yes. Use `-u 2k`.
-`-u 4k` requires account to have corresponding subscription/permissions.
-On upscale failure, it automatically downgrades to original image and saves it.
-
-### Q2: What to do if `reCAPTCHA evaluation failed`?
-
-1. Ensure `captcha.method = "personal"`
-2. Ensure Playwright + Chromium is installed
-3. Ensure browser can access and is logged into Google Flow
-
-### Q3: What to do if 401/500 errors occur?
-
-- 401: Usually AT expired, program will auto-refresh and retry
-- 500: Upstream occasional issue, recommend retry or switch model (prefer `gemini-3.1-flash-image-*`)
-
-### Q4: Config file location and method settings not taking effect?
-
-The CLI reads config from `~/.flow-cli/config.toml` (user's home directory), NOT from the project root `config.toml`.
-
-**Solutions:**
-1. Copy your config to the default location:
-   ```bash
-   mkdir -p ~/.flow-cli
-   cp <your-project-path>/config.toml ~/.flow-cli/config.toml
-   ```
-2. Or use environment variable:
-   ```bash
-   export FLOW_CONFIG=/path/to/your/config.toml
-   ```
-
-### Q5: How to update/login with new Session Token?
-
-```bash
-flow-cli login --st "your-new-session-token"
-```
-
-You can get ST from Flow Token browser extension.
-When ST changes, old `at` / `project_id` cache is cleared automatically to avoid reusing old account project context.
-
-### Q6: Playwright/browser issues in personal captcha mode?
-
-1. Install Playwright: `pip install playwright && python -m playwright install chromium`
-2. If browser doesn't open automatically, check if another Chrome instance is using the profile
-3. For headless mode issues, try setting `personal_headless = false` in config
-4. Browser profile is stored at `~/.flow-cli/browser-profile`
-
-### Q7: Image generation succeeded but file not saved?
-
-- The downloader now auto-falls back to standard-library `urllib` when `curl-cffi` hits TLS/runtime issues
-- Check if output directory exists and is writable
-- Ensure sufficient disk space
-- Check debug logs for more details (set `debug.enabled = true` in config)
-
-## Security Tips
-
-- Do not commit ST/AT to repository
-- Do not expose full tokens in chat/screenshots
-- `~/.flow-cli/token.json` recommended for local use only
-
-## Related Links
-
-- Google Flow: <https://labs.google/fx/tools/flow>
-- Flow2API: <https://github.com/TheSmallHanCat/flow2api>
-- Flow2API-Token-Updater: <https://github.com/TheSmallHanCat/Flow2API-Token-Updater>
+- Current image, video, and real-Chrome login support is provided through [gflow-cli](https://pypi.org/project/gflow-cli/).
+- The original image workflow was inspired by [Flow2API](https://github.com/TheSmallHanCat/flow2api).
+- The token extension was inspired by [Flow2API-Token-Updater](https://github.com/TheSmallHanCat/Flow2API-Token-Updater).
 
 ## License
 

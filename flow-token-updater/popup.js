@@ -1,16 +1,14 @@
 // popup.js - Flow Token Updater
 
+const DEFAULT_SERVER_URL = 'http://127.0.0.1:8765/token';
+const DEFAULT_REFRESH_INTERVAL = 60;
+
 // 检测服务器状态
 async function checkServerStatus() {
     const statusEl = document.getElementById('serverStatus');
     const config = await chrome.storage.sync.get(['localServerUrl']);
-
-    if (!config.localServerUrl) {
-        statusEl.innerHTML = `<span class="status-dot offline"></span><span class="status-text">${i18n.t('serverStatus.notConfigured')}</span>`;
-        return;
-    }
-
-    const serverUrl = config.localServerUrl.replace('/token', '/health');
+    const localServerUrl = config.localServerUrl || DEFAULT_SERVER_URL;
+    const serverUrl = localServerUrl.replace('/token', '/health');
 
     try {
         const response = await fetch(serverUrl, { method: 'GET' });
@@ -41,12 +39,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 加载已保存的配置
     const config = await chrome.storage.sync.get(['localServerUrl', 'refreshInterval']);
+    const localServerUrl = config.localServerUrl || DEFAULT_SERVER_URL;
+    const refreshInterval = config.refreshInterval || DEFAULT_REFRESH_INTERVAL;
 
-    if (config.localServerUrl) {
-        document.getElementById('localServerUrl').value = config.localServerUrl;
-    }
-    if (config.refreshInterval) {
-        document.getElementById('refreshInterval').value = config.refreshInterval;
+    document.getElementById('localServerUrl').value = localServerUrl;
+    document.getElementById('refreshInterval').value = refreshInterval;
+
+    if (!config.localServerUrl || !config.refreshInterval) {
+        await chrome.storage.sync.set({ localServerUrl, refreshInterval });
     }
 
     // 延迟加载 Token 列表

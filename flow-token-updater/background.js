@@ -2,6 +2,8 @@
 
 // 定时器名称
 const ALARM_NAME = 'flowTokenRefresh';
+const DEFAULT_SERVER_URL = 'http://127.0.0.1:8765/token';
+const DEFAULT_REFRESH_INTERVAL = 60;
 
 // 日志系统
 const Logger = {
@@ -76,6 +78,19 @@ async function saveTokenToHistory(token) {
 
 // 初始化：设置定时器
 chrome.runtime.onInstalled.addListener(async () => {
+    const config = await chrome.storage.sync.get(['localServerUrl', 'refreshInterval']);
+    const defaults = {};
+
+    if (!config.localServerUrl) {
+        defaults.localServerUrl = DEFAULT_SERVER_URL;
+    }
+    if (!config.refreshInterval) {
+        defaults.refreshInterval = DEFAULT_REFRESH_INTERVAL;
+    }
+    if (Object.keys(defaults).length > 0) {
+        await chrome.storage.sync.set(defaults);
+    }
+
     await Logger.info('Flow Token Updater installed');
     await setupAlarm();
 });
@@ -149,7 +164,7 @@ async function setupAlarm() {
     await chrome.alarms.clear(ALARM_NAME);
 
     const config = await chrome.storage.sync.get(['refreshInterval']);
-    const intervalMinutes = config.refreshInterval || 60;
+    const intervalMinutes = config.refreshInterval || DEFAULT_REFRESH_INTERVAL;
 
     chrome.alarms.create(ALARM_NAME, {
         periodInMinutes: intervalMinutes
@@ -166,13 +181,9 @@ async function extractToken() {
         await Logger.info('开始提取 Token...');
 
         const config = await chrome.storage.sync.get(['localServerUrl']);
+        const localServerUrl = config.localServerUrl || DEFAULT_SERVER_URL;
 
-        if (!config.localServerUrl) {
-            await Logger.error('本地服务器地址未设置');
-            return { success: false, error: '请先配置本地服务器地址' };
-        }
-
-        await Logger.info('配置已加载', { serverUrl: config.localServerUrl });
+        await Logger.info('配置已加载', { serverUrl: localServerUrl });
 
         // 1. 打开 Google Flow 页面（后台）
         // 注意：需要访问 labs.google 的特定认证页面才能获取 __Secure-next-auth.session-token
@@ -269,10 +280,10 @@ async function extractToken() {
         await Logger.info('Session-token 提取成功', { tokenLength: sessionToken.length });
 
         // 3. 发送到本地服务器
-        await Logger.info('正在发送到本地服务器...', { url: config.localServerUrl });
+        await Logger.info('正在发送到本地服务器...', { url: localServerUrl });
 
         try {
-            const response = await fetch(config.localServerUrl, {
+            const response = await fetch(localServerUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

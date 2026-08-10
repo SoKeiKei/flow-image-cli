@@ -525,8 +525,8 @@
     <div class="form-section">
         <div class="form-group">
             <label for="localServerUrl" data-i18n="form.serverUrl">本地服务器</label>
-            <input type="text" id="localServerUrl" data-i18n="form.serverUrlPlaceholder" placeholder="http://127.0.0.1:8765/token">
-            <div class="hint" data-i18n="form.serverUrlHint">运行 flow-token-server 后填入</div>
+            <input type="text" id="localServerUrl" data-i18n="form.serverUrlPlaceholder" value="http://127.0.0.1:8765/token" placeholder="http://127.0.0.1:8765/token">
+            <div class="hint" data-i18n="form.serverUrlHint">默认使用本机 8765 端口，启动服务后会自动检测状态</div>
         </div>
 
         <div class="form-group">
@@ -556,7 +556,7 @@
         <div class="footer">
             <button id="logsBtn" class="btn-ghost" data-i18n="token.viewLogs">查看日志</button>
             <button id="clearTokensBtn" class="clear-btn" data-i18n="token.clearHistory">清除历史</button>
-            <span class="version">v1.0.0</span>
+            <span class="version">v1.1.0</span>
         </div>
     </div>
 

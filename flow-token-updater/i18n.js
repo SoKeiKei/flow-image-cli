@@ -26,7 +26,7 @@ const i18n = {
             form: {
                 serverUrl: '本地服务器',
                 serverUrlPlaceholder: 'http://127.0.0.1:8765/token',
-                serverUrlHint: '运行 flow-token-server 后填入',
+                serverUrlHint: '默认使用本机 8765 端口，启动服务后会自动检测状态',
                 refreshInterval: '刷新间隔',
                 refreshIntervalHint: '单位：分钟',
                 saveConfig: '保存配置',
@@ -84,7 +84,7 @@ const i18n = {
             form: {
                 serverUrl: 'Local Server',
                 serverUrlPlaceholder: 'http://127.0.0.1:8765/token',
-                serverUrlHint: 'Fill after running flow-token-server',
+                serverUrlHint: 'Defaults to local port 8765 and checks service status automatically',
                 refreshInterval: 'Refresh Interval',
                 refreshIntervalHint: 'Unit: minutes',
                 saveConfig: 'Save Config',

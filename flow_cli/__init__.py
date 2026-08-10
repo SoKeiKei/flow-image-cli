@@ -1,4 +1,4 @@
 """
-Flow Image CLI - 简化版 Flow 图片生成命令行工具
+Flow CLI - 供 Agent 直接调用的 Flow 图片与视频生成工具
 """
-__version__ = "1.0.0"
+__version__ = "1.2.0"

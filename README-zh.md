@@ -1,89 +1,195 @@
-# Flow Image CLI
+# Flow Image CLI：不只有 Image，现已支持视频生成
 
 English README: [README.md](./README.md)
 
-Flow 图片生成命令行工具，支持：
+供终端和 Agent 窗口直接调用的 Google Flow 图片与视频生成工具。
 
-- 文生图 / 图生图
-- 2K / 4K 放大（`-u 2k` / `-u 4k`）
-- 放大失败自动降级为原图并保底保存
-- 本机浏览器验证码模式（`personal`）
-- 本地 Token 接收服务（配合 `flow-token-updater`）
+## 功能
 
-> 项目说明：
-> - 本项目受 [Flow2API](https://github.com/TheSmallHanCat/flow2api) 启发制作。
-> - `flow-token-updater` 受 [Flow2API-Token-Updater](https://github.com/TheSmallHanCat/Flow2API-Token-Updater) 启发。
+- 文生图、图生图和多参考图编辑
+- Nano Banana 2、Nano Banana Pro、Imagen 4
+- 文生视频、首帧生视频、首尾帧视频和参考图视频
+- Gemini Omni Flash 与 Veo 3.1
+- 固定复用同一个 Flow 项目，避免每次生成都新建项目
+- 真实 Chrome 登录，并保留原有 Session Token 生图方式
+- Chrome Token 插件默认连接本机服务并自动检查在线状态
+- 图片 2K / 4K 放大，失败时保底保存原图
 
-## 项目定位
+v1.2.0 新增了最新图片和视频命令、固定项目、Agent 调用说明，以及 Token 插件的默认本机地址和服务状态检查。
 
-本仓库是本地使用的轻量级生图实现：
+> 本项目是非官方工具，会调用 Google Flow 网页能力。模型、额度和页面行为可能随账号、地区或 Flow 更新而变化。生成会消耗你的 Flow 额度。
 
-- 聚焦 Flow 生图主链路（ST/AT、生成、放大）
-- 提供 CLI + 本地辅助工具，不是完整平台服务
+## 为什么使用这个项目
 
-## 使用前提（必须）
+参考项目覆盖的场景更完整，也更适合需要平台服务或深度控制的用户。本项目选择保留一层轻量入口，重点解决日常生成：
 
-- 能正常登录 Flow：<https://labs.google/fx>
-- 账号具备生图权限
-- 使用 `-u 4k` 时需有对应订阅/权限
+- 安装后直接使用 `flow-cli`，Agent 不需要理解多套服务和接口
+- 把登录、图片和视频统一到同一个命令入口
+- 可以固定复用一个 Flow 项目，连续对话生成时不会把项目列表弄乱
+- 默认只生成一个结果，并方便明确指定视频最短时长，减少不必要的额度消耗
+- 保留本机 Token 服务和 Chrome 插件，兼容原有图片生成方式
 
-## 目录结构
-
-```text
-flow-image-cli/
-├── flow_cli/                # CLI 主代码
-├── flow-token-updater/      # 浏览器插件（推荐）
-├── flow_token_server.py     # 本地 Token 接收服务
-├── config.toml              # 配置模板
-└── README.md
-```
+它并不是要替代参考项目，而是更偏向“在 Agent 窗口里说一句，就直接生成并返回文件”的使用方式。
 
 ## 安装
 
+需要 Python 3.11+ 和 Chrome。
+
 ```bash
+git clone https://github.com/SoKeiKei/flow-image-cli.git
 cd flow-image-cli
-pip install -r requirements.txt
-pip install -e .
+py -m pip install -e .
 ```
 
-### 安装 Playwright（`personal` 模式必需）
+确认安装：
 
 ```bash
-pip install playwright
-python -m playwright install chromium
+flow-cli --help
+flow-cli media-models
 ```
 
-## 推荐 Token 流程：flow-token-updater
+## 推荐登录方式
 
-推荐使用仓库内插件自动同步 ST，避免手工复制。
+首次使用最新图片或视频命令时运行：
 
-### 1) 启动本地 Token 服务
+```bash
+flow-cli auth login --browser chrome
+```
+
+命令会打开真实 Chrome。完成 Google 登录后，可以在后续终端或 Agent 窗口中复用登录状态。
+
+```bash
+flow-cli auth status
+```
+
+## 固定复用一个 Flow 项目
+
+从 Flow 项目网址中复制项目 ID，然后只需设置一次：
+
+```bash
+flow-cli project use <Flow 项目 ID>
+flow-cli project show
+```
+
+之后 `image t2i`、`image i2i`、`video t2v`、`video i2v` 和 `video r2v` 会默认复用这个项目。命令中显式传入 `--project` 时，以该次指定为准。
+
+取消固定项目不会删除 Flow 网页中的项目：
+
+```bash
+flow-cli project clear
+```
+
+固定设置保存在 `~/.flow-cli/fixed-flow-project.json`。也可以通过 `FLOW_CLI_HOME` 改变保存目录。
+
+## 在 Agent 窗口中调用
+
+新窗口可直接这样说：
+
+```text
+请使用本机 flow-cli 和已经保存的 Flow 登录状态生成内容。
+先运行 flow-cli auth status 和 flow-cli project show。
+必须复用固定 Flow 项目，不要新建项目。
+只生成一个结果；视频使用 4 秒最短时长。
+生成后确认文件可以打开，并把绝对路径发给我。
+
+具体要求：
+【填写提示词、参考图路径、模型、画幅和保存位置】
+```
+
+如果 Agent 不熟悉命令，也可以把下面对应示例一起发给它。
+
+## 图片生成
+
+```bash
+# Nano Banana 2 文生图
+flow-cli image t2i "电影感的雨夜街道" --model nano2 --aspect 16:9 -n 1 -o output\street.png
+
+# Nano Banana Pro 文生图
+flow-cli image t2i "极简产品摄影" --model nano-pro --aspect 1:1 -n 1 -o output\product.png
+
+# Imagen 4 文生图
+flow-cli image t2i "清晨山谷风景" --model image4 --aspect 16:9 -n 1 -o output\valley.png
+
+# 多参考图编辑
+flow-cli image i2i "保持人物一致，改成冬季雪景" --ref person.jpg --ref clothes.jpg --model nano2 -n 1 -o output\winter.png
+```
+
+图片模型：
+
+- `nano2`：Nano Banana 2，最多 10 张参考图
+- `nano-pro`：Nano Banana Pro，最多 10 张参考图
+- `image4` / `imagen4`：Imagen 4，最多 3 张参考图
+
+图片画幅：`9:16`、`16:9`、`1:1`、`4:3`、`3:4`。默认只生成 1 张，`-n` 可设为 1–4。
+
+## 视频生成
+
+以下示例都只生成 1 个、使用 4 秒最短时长：
+
+```bash
+# 文生视频
+flow-cli video t2v "镜头缓慢推进清晨薄雾中的竹林" --model omni-flash --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
+
+# 图片生成后做图生视频
+flow-cli video i2v output\street.png "雨水缓慢落下，镜头轻微前移" --model veo-lite --duration 4 --count 1 --aspect 16:9 -o output\street.mp4
+
+# 首尾帧过渡
+flow-cli video i2v --initial-frame first.png --end-frame last.png "平滑的电影感转场" --model veo-fast --duration 4 --count 1 -o output\transition.mp4
+
+# 多参考图视频
+flow-cli video r2v "两名角色在雨中相遇" --ref person-a.png --ref person-b.png --model omni-flash --duration 4 --count 1 -o output\meeting.mp4
+```
+
+视频模型：
+
+- `omni-flash`：最多 7 张参考图，可选 4 / 6 / 8 / 10 秒
+- `veo-lite`：成本优先，最多 3 张参考图
+- `veo-fast`：速度优先，最多 3 张参考图
+- `veo-quality`：质量优先，不支持参考图视频
+- `veo-lite-lp`：低优先级别名；是否可用取决于当前 Flow 页面和账号
+
+Veo 3.1 模型可选 4 / 6 / 8 秒。只有 `omni-flash` 支持 10 秒。`--count` 大于 1 会增加额度消耗。
+
+## 原有 Session Token 生图方式
+
+旧的 `flow-cli gen` 仍然保留：
+
+```bash
+flow-cli login --st "your-session-token"
+flow-cli models
+flow-cli credits
+flow-cli gen "a cinematic cat in neon city" -o output\cat.png
+flow-cli gen "convert to watercolor" -r input.jpg -u 2k -o output\watercolor.png
+```
+
+`-u` 支持 `none`、`2k` 和 `4k`。放大失败时会自动保存原图。
+
+## Token 插件
+
+仓库内的 `flow-token-updater` 可以把 Chrome 中的 Flow Session Token 同步到旧生图方式。
+
+### 1. 启动本地服务
 
 ```bash
 python flow_token_server.py
 ```
 
-默认地址：`http://127.0.0.1:8765/token`
+默认地址是 `http://127.0.0.1:8765/token`，健康检查地址是 `http://127.0.0.1:8765/health`。
 
-### 2) Chrome 加载插件
+### 2. 加载 Chrome 插件
 
 1. 打开 `chrome://extensions/`
 2. 启用开发者模式
 3. 点击“加载已解压的扩展程序”
-4. 选择 `/flow-image-cli/flow-token-updater`
+4. 选择仓库中的 `flow-token-updater` 目录
 
-### 3) 配置插件
+插件首次安装会自动填入并保存 `http://127.0.0.1:8765/token`，同时检查服务是否在线。只有使用其他地址时才需要手动修改。
 
-1. 打开插件 popup
-2. 服务器地址填写 `http://127.0.0.1:8765/token`
-3. 保存并点击“立即获取”
-
-ST 会写入 `~/.flow-cli/token.json`。
-当 ST 发生变化时，会自动清空缓存的 `at` / `project_id`，下次生图会自动创建新的 `Flow CLI Project`。
+Token 会保存到 `~/.flow-cli/token.json`。Session Token 变化后，旧生图链路缓存的账号状态会自动清空。
 
 ## 配置
 
-配置文件：`~/.flow-cli/config.toml`
+旧生图链路的用户配置位于 `~/.flow-cli/config.toml`：
 
 ```toml
 [flow]
@@ -96,7 +202,7 @@ max_retries = 3
 output_dir = "output"
 
 [captcha]
-method = "personal" # personal / none
+method = "personal"
 personal_headless = false
 personal_timeout = 90
 personal_settle_seconds = 2.0
@@ -105,172 +211,43 @@ personal_settle_seconds = 2.0
 enabled = false
 ```
 
-Token 文件：`~/.flow-cli/token.json`
-
-## 打码模式说明
-
-支持的 `captcha.method`：
-
-- `personal`：使用本机浏览器执行验证码（需要 Playwright）
-- `none`：不主动处理验证码（遇到验证码场景可能失败）
-
-默认 `personal_headless = false`（可视化浏览器模式），对部分账号更稳定。若要静默运行可改为 `true`。
-
-## 交互式脚本
+`personal` 模式还需要：
 
 ```bash
-python interactive_generate.py
+py -m pip install playwright
+py -m playwright install chromium
 ```
 
-支持配置：
+## 常见问题
 
-- 模型族 / 画幅
-- 分辨率（`none/2k/4k`）
-- 提示词
-- 参考图路径
-- 默认输出路径
-- 语言模式（`中文 / English / 双语`）
+### 登录成功但生成失败
 
-默认输出使用时间戳模板：`output/flow_{timestamp}.png`
+先运行 `flow-cli auth status`，再确认 Google Flow 网页本身可以正常生成，并检查账号额度。网页更新后可能需要升级依赖。
 
-## CLI 使用示例
+### 每次任务仍会新建项目
 
-### 登录
+运行 `flow-cli project show`。如果没有固定项目，用 `flow-cli project use <项目 ID>` 设置。仅支持上述五个常用生成命令自动注入固定项目。
 
-```bash
-flow-cli login --st "your-session-token"
-```
+### 配置文件没有生效
 
-### 基础命令
+根目录的 `config.toml` 是模板。实际读取的是 `~/.flow-cli/config.toml`，也可以通过 `FLOW_CONFIG` 指定其他路径。
 
-```bash
-flow-cli models
-flow-cli credits
-flow-cli config
-```
+### 图片生成成功但没有保存
 
-### 生图
+确认输出目录可写且磁盘空间足够。旧生图链路下载失败时会自动切换下载方式；需要排查时可临时开启调试模式。
 
-```bash
-# 文生图
-flow-cli gen "a cinematic cat in neon city"
+## 安全说明
 
-# 指定模型 + 输出
-flow-cli gen "mountain landscape" -m gemini-3.1-flash-image-landscape -o output\landscape.png
+- 不要提交或公开 ST、AT、Cookie、登录配置和生成历史
+- 不要在聊天或截图中展示完整 Token
+- `~/.flow-cli/token.json` 和浏览器登录资料只应保存在本机
+- 插件的 Token 历史会保存在 Chrome 本地存储中，可随时在插件中清除
 
-# 图生图
-flow-cli gen "convert to watercolor style" -r input.jpg -o output\watercolor.png
-```
+## 致谢
 
-### 2K / 4K 放大
-
-```bash
-# 放大到 2K
-flow-cli gen "a cat" -m gemini-3.1-flash-image-landscape -u 2k -o output\cat_2k.png
-
-# 放大到 4K（需订阅/权限）
-flow-cli gen "a cat" -m gemini-3.1-flash-image-landscape -u 4k -o output\cat_4k.png
-```
-
-放大失败时会自动降级保存原图到目标路径。
-
-## Python API 示例
-
-### 文生图
-
-```python
-import asyncio
-from flow_cli.client import ImageGenerator
-
-async def main():
-    g = ImageGenerator()
-    path = await g.generate(
-        prompt="a cinematic cat",
-        model="gemini-3.1-flash-image-landscape",
-        output_path="output/api_basic.png",
-    )
-    print(path)
-
-asyncio.run(main())
-```
-
-### 图生图 + 2K
-
-```python
-import asyncio
-from pathlib import Path
-from flow_cli.client import ImageGenerator
-
-async def main():
-    g = ImageGenerator()
-    path = await g.generate(
-        prompt="convert to watercolor",
-        model="gemini-3.1-flash-image-landscape",
-        reference_image=Path("input.jpg").read_bytes(),
-        output_path="output/api_img2img_2k.png",
-        upscale="2k",
-    )
-    print(path)
-
-asyncio.run(main())
-```
-
-## 常见问题 (FAQ)
-
-### Q1: 如何获取 2K 图片？
-
-使用 `-u 2k` 参数。
-`-u 4k` 需要账户有对应的订阅/权限。
-放大失败时，会自动降级为原图并保存。
-
-### Q2: 遇到 `reCAPTCHA evaluation failed` 错误怎么办？
-
-1. 确保 `captcha.method = "personal"`
-2. 确保已安装 Playwright 和 Chromium
-3. 确保浏览器能访问 Google Flow 并已登录
-
-### Q3: 遇到 401/500 错误怎么办？
-
-- 401：通常是 AT 过期，程序会自动刷新并重试
-- 500：上游服务偶发问题，建议重试或更换模型（推荐使用 `gemini-3.1-flash-image-*`）
-
-### Q4: 配置文件不生效？配置方法设置了但没效果？
-
-CLI 默认从 `~/.flow-cli/config.toml`（用户主目录）读取配置，而非项目根目录的 `config.toml`。
-
-**解决方案：**
-1. 将配置文件复制到默认位置：
-   ```bash
-   mkdir -p ~/.flow-cli
-   cp <你的项目路径>/config.toml ~/.flow-cli/config.toml
-   ```
-2. 或使用环境变量：
-   ```bash
-   export FLOW_CONFIG=/path/to/your/config.toml
-   ```
-
-### Q5: 如何更新/登录新的 Session Token？
-
-```bash
-flow-cli login --st "你的新session-token"
-```
-
-你可以从 Flow Token 浏览器插件获取 ST。
-当 ST 变化时，旧 `at` / `project_id` 会自动清空，避免复用旧账号项目上下文。
-
-### Q6: personal 验证码模式下 Playwright/浏览器问题？
-
-1. 安装 Playwright：`pip install playwright && python -m playwright install chromium`
-2. 如果浏览器没有自动打开，检查是否有其他 Chrome 实例正在使用该 profile
-3. 如果 headless 模式有问题，尝试在配置中设置 `personal_headless = false`
-4. 浏览器 profile 存储在 `~/.flow-cli/browser-profile`
-
-### Q7: 图片生成成功但文件没保存？
-
-- 下载阶段已增加自动回退：当 `curl-cffi` 出现 TLS/运行时异常时，会自动改用标准库 `urllib` 下载
-- 检查输出目录是否存在且可写
-- 确保磁盘空间充足
-- 开启 debug 模式查看更多详情（在配置中设置 `debug.enabled = true`）
+- 最新图片、视频与真实 Chrome 登录能力复用 [gflow-cli](https://pypi.org/project/gflow-cli/)
+- 原有生图链路受 [Flow2API](https://github.com/TheSmallHanCat/flow2api) 启发
+- Token 插件受 [Flow2API-Token-Updater](https://github.com/TheSmallHanCat/Flow2API-Token-Updater) 启发
 
 ## 许可证
 
