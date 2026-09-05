@@ -6,18 +6,22 @@ import os
 import re
 import subprocess
 import sys
+from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Sequence
 
-
 _PROJECT_ID_PATTERN = re.compile(
-    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
-    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-" r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 )
 _GENERATION_COMMANDS = {
     "image": {"t2i", "i2i"},
-    "video": {"t2v", "i2v", "r2v"},
+    # ``extend`` is a project-scoped video operation in gflow-cli 0.67+.
+    # ``chain`` deliberately stays out: it has no --project option.
+    "video": {"t2v", "i2v", "r2v", "extend"},
 }
+GFLOW_CLI_MIN_VERSION = "0.67.0"
+GFLOW_CLI_MAX_VERSION = "0.68.0"
+_VERSION_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:\+[0-9A-Za-z.-]+)?$")
 
 
 def _state_path() -> Path:
@@ -62,11 +66,67 @@ def clear_fixed_project() -> bool:
     return True
 
 
+def get_installed_gflow_version() -> str | None:
+    """读取当前环境安装的 gflow-cli 发行版本。"""
+    try:
+        return importlib_metadata.version("gflow-cli")
+    except importlib_metadata.PackageNotFoundError:
+        return None
+    except Exception:
+        # Broken metadata should be reported as an installation problem by
+        # the compatibility check instead of making the bridge traceback.
+        return None
+
+
+def _version_tuple(version: str) -> tuple[int, int, int] | None:
+    match = _VERSION_PATTERN.fullmatch(version.strip())
+    if not match:
+        return None
+    return tuple(int(part) for part in match.groups())
+
+
+def check_gflow_compatibility() -> tuple[bool, str | None]:
+    """检查 gflow-cli 是否存在且落在本项目支持的版本范围内。"""
+    try:
+        module_available = importlib.util.find_spec("gflow_cli") is not None
+    except (ImportError, AttributeError, ValueError):
+        module_available = False
+
+    if not module_available:
+        return (
+            False,
+            "错误: Flow 组件未安装，请重新安装项目依赖: " "python -m pip install -e .",
+        )
+
+    version = get_installed_gflow_version()
+    if version is None:
+        return (
+            False,
+            "错误: 已找到 gflow_cli，但无法读取 gflow-cli 版本；请重新安装项目依赖: "
+            "python -m pip install -e .",
+        )
+
+    parsed_version = _version_tuple(version)
+    minimum = _version_tuple(GFLOW_CLI_MIN_VERSION)
+    maximum = _version_tuple(GFLOW_CLI_MAX_VERSION)
+    if parsed_version is None or not (minimum <= parsed_version < maximum):
+        return (
+            False,
+            f"错误: 当前安装的 gflow-cli {version} 不兼容；本版本需要 "
+            f">={GFLOW_CLI_MIN_VERSION},<{GFLOW_CLI_MAX_VERSION}。"
+            "请重新安装项目依赖: python -m pip install -e .",
+        )
+
+    return True, None
+
+
 def _with_fixed_project(command: str, arguments: Sequence[str]) -> list[str]:
     forwarded = list(arguments)
     if not forwarded or forwarded[0] not in _GENERATION_COMMANDS.get(command, set()):
         return forwarded
-    if "--project" in forwarded or any(arg.startswith("--project=") for arg in forwarded):
+    if "--project" in forwarded or any(
+        arg.startswith("--project=") for arg in forwarded
+    ):
         return forwarded
     project_id = get_fixed_project()
     if project_id:
@@ -81,13 +141,19 @@ def run_gflow(
     show_help_when_empty: bool = True,
 ) -> int:
     """在当前 Python 环境中运行 gflow-cli，并原样返回退出码。"""
-    if importlib.util.find_spec("gflow_cli") is None:
-        print("错误: 视频组件未安装，请重新运行: py -m pip install -e .")
+    compatible, error = check_gflow_compatibility()
+    if not compatible:
+        print(error)
         return 2
 
     forwarded_arguments = _with_fixed_project(command, arguments)
     if not forwarded_arguments and show_help_when_empty:
         forwarded_arguments.append("--help")
+
+    if command == "image" and forwarded_arguments[:1] == ["t2i"]:
+        from .migrated_image import run_migrated_t2i
+
+        return run_migrated_t2i(forwarded_arguments[1:])
 
     environment = os.environ.copy()
     environment.setdefault("PYTHONUTF8", "1")

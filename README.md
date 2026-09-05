@@ -6,16 +6,16 @@ A local CLI for generating Google Flow images and videos directly from a termina
 
 ## Features
 
-- Text-to-image, image-to-image, and multi-reference editing
-- Nano Banana 2, Nano Banana Pro, and Imagen 4
-- Text-to-video, image-to-video, first/last-frame video, and reference-to-video
-- Gemini Omni Flash and Veo 3.1
+- Text-to-image on the migrated Flow host, with legacy image-to-image and multi-reference entry points retained
+- Nano Banana 2 Lite, Nano Banana 2, and Nano Banana Pro
+- Text-to-video, image-to-video, first/last-frame video, and reference-to-video where the current Flow host supports them
+- Omni 1.1 Flash (`omni-flash`) and Veo 3.1 Lite / Fast / Quality
 - Reuse one fixed Flow project instead of creating a project for every task
 - Real Chrome login, plus the original Session Token image workflow
 - Chrome token extension with a prefilled local server URL and health check
 - 2K / 4K image upscaling with original-image fallback
 
-Version 1.2.0 adds the current image/video commands, fixed-project reuse, agent usage instructions, and automatic local defaults in the token extension.
+Version 1.3.0 updates the integration to gflow-cli 0.67.x and adds text-to-image support plus the current image and video model catalog for the migrated Flow host.
 
 > This is an unofficial tool that drives Google Flow web capabilities. Model availability, credits, and page behavior may vary by account, region, and future Flow updates. Generation consumes your Flow credits.
 
@@ -26,7 +26,7 @@ The referenced projects cover a broader set of use cases and remain a better fit
 - One `flow-cli` entry point that agents can call without coordinating multiple services
 - Login, image, and video commands under the same CLI
 - Fixed-project reuse for clean, continuous agent conversations
-- One result by default and a 4-second video default when no duration is requested
+- One result by default; when duration matters, the agent explicitly chooses 4 seconds when the current account/model exposes that control, while an omitted duration follows Flow's current default
 - A local token receiver and Chrome extension for compatibility with the original image workflow
 
 It is not intended to replace the referenced projects. Its focus is the shorter path from an agent request to a verified local media file.
@@ -50,6 +50,8 @@ git clone https://github.com/SoKeiKei/flow-image-cli.git
 cd flow-image-cli
 py -m pip install -e .
 ```
+
+This release uses `gflow-cli` 0.67.x (`>=0.67.0,<0.68.0`). Keep that dependency range when installing or upgrading so the command names and model catalog match this README.
 
 Verify the installation:
 
@@ -81,13 +83,19 @@ flow-cli project use <Flow project ID>
 flow-cli project show
 ```
 
-`image t2i`, `image i2i`, `video t2v`, `video i2v`, and `video r2v` will then reuse that project by default. An explicit `--project` option overrides the saved project for one command.
+`image t2i`, `image i2i`, `video t2v`, `video i2v`, `video r2v`, and `video extend` will then reuse that project by default. For `video extend`, the fixed project must own the media ID. An explicit `--project` option overrides the saved project for one command.
 
 ```bash
 flow-cli project clear
 ```
 
 Clearing the setting does not delete the project in Flow. The setting is stored in `~/.flow-cli/fixed-flow-project.json`; set `FLOW_CLI_HOME` to use another directory.
+
+## Current Flow host compatibility
+
+After an account is migrated to the newer `flow.google.com` host, this project can generate text-to-image and text-to-video content in an existing Flow project. The migrated image path reuses the local browser login saved by `flow-cli auth login --browser chrome`; no manual token copy is needed.
+
+For a migrated account, start with `flow-cli auth status`, `flow-cli project show`, and a fixed existing project. Image-to-image, multi-reference editing, `video i2v`, `video r2v`, and `video extend` still use the upstream component and remain conditional until the current Flow host accepts them.
 
 ## Use from an agent chat
 
@@ -97,7 +105,7 @@ Paste a request like this into a new agent window:
 Use the local flow-cli and its saved Flow login.
 First run flow-cli auth status and flow-cli project show.
 Reuse the fixed Flow project and do not create a new project.
-Generate exactly one result. Use 4 seconds when no video duration is requested; follow the user's requested duration when one is provided.
+Generate exactly one result. If the user did not specify a video duration, explicitly pass `--duration 4` when the current account/model supports the duration control. If the user specified a duration, pass that value unchanged. If `--duration` is omitted, Flow chooses its current default.
 Verify that the saved file opens, then return its absolute path.
 
 Request:
@@ -112,7 +120,7 @@ After installing this tool, paste the following prompt into an agent window to c
 Create a Skill named flow-media for the locally installed flow-cli, and install it in a Skill directory discoverable by the current agent.
 Trigger it when I ask to generate images with Gemini/Flow, videos with Veo/Flow, or image-to-video content.
 Before generation, run flow-cli auth status and flow-cli project show. Reuse the fixed project and do not create a new project.
-Generate one result by default. Use 4 seconds when no video duration is requested, and follow the user's requested duration when one is provided. Verify that the output file opens and return its absolute path.
+Generate one result by default. If the user did not specify a video duration, explicitly pass `--duration 4` when the current account/model supports the duration control. If the user specified a duration, pass that value unchanged. If `--duration` is omitted, Flow chooses its current default. Verify that the output file opens and return its absolute path.
 Validate the Skill, and never store tokens, cookies, or login data in it.
 ```
 
@@ -125,8 +133,8 @@ flow-cli image t2i "cinematic rainy street at night" --model nano2 --aspect 16:9
 # Nano Banana Pro
 flow-cli image t2i "minimal product photography" --model nano-pro --aspect 1:1 -n 1 -o output\product.png
 
-# Imagen 4
-flow-cli image t2i "mountain valley at dawn" --model image4 --aspect 16:9 -n 1 -o output\valley.png
+# Nano Banana 2 Lite (lowest cost)
+flow-cli image t2i "mountain valley at dawn" --model nano2-lite --aspect 16:9 -n 1 -o output\valley.png
 
 # Multi-reference image editing
 flow-cli image i2i "keep the person consistent and change the scene to winter" --ref person.jpg --ref clothes.jpg --model nano2 -n 1 -o output\winter.png
@@ -134,15 +142,17 @@ flow-cli image i2i "keep the person consistent and change the scene to winter" -
 
 Image aliases:
 
-- `nano2`: Nano Banana 2, up to 10 references
-- `nano-pro`: Nano Banana Pro, up to 10 references
-- `image4` / `imagen4`: Imagen 4, up to 3 references
+- `nano2-lite`: Nano Banana 2 Lite, currently the lowest-cost option
+- `nano2`: Nano Banana 2
+- `nano-pro`: Nano Banana Pro
+
+The migrated Flow page no longer offers Imagen 4, so `image4` / `imagen4` are no longer listed as available models.
 
 Image aspects: `9:16`, `16:9`, `1:1`, `4:3`, and `3:4`. The default count is one; `-n` accepts 1–4.
 
 ## Video generation
 
-These examples generate one video using the 4-second default for requests without a duration. Change `--duration` when the user requests another length:
+These examples generate one video and explicitly request 4 seconds. This is the Agent convention when the user does not specify a duration; it is not a forced wrapper default. Pass the user's requested duration unchanged. If `--duration` is omitted, Flow chooses its current default, and an account/model without a duration control may reject the command before submission:
 
 ```bash
 # Text-to-video
@@ -156,17 +166,24 @@ flow-cli video i2v --initial-frame first.png --end-frame last.png "smooth cinema
 
 # Reference-to-video
 flow-cli video r2v "the two characters meet in the rain" --ref person-a.png --ref person-b.png --model omni-flash --duration 4 --count 1 -o output\meeting.mp4
+
+# Continue an existing clip (pass the project explicitly, or use the saved fixed project)
+flow-cli video extend <media-id> "the wave recedes" --project <Flow project ID> --aspect 16:9 -o output\continued.mp4
 ```
 
 Video aliases:
 
-- `omni-flash`: up to 7 references; 4 / 6 / 8 / 10 seconds
-- `veo-lite`: cost-oriented; up to 3 references
-- `veo-fast`: speed-oriented; up to 3 references
-- `veo-quality`: quality-oriented; no reference-to-video support
-- `veo-lite-lp`: lower-priority alias; availability depends on the current Flow UI and account
+- `omni-flash`: Omni 1.1 Flash; up to 7 references; 4 / 6 / 8 / 10 seconds
+- `veo-lite`: Veo 3.1 Lite; cost-oriented; up to 3 references
+- `veo-fast`: Veo 3.1 Fast; speed-oriented; up to 3 references
+- `veo-quality`: Veo 3.1 Quality; quality-oriented; no reference-to-video support
+- `veo-lite-lp`: lower-priority Veo 3.1 Lite alias; availability may vary by account, region, and the current Flow UI
 
-Veo 3.1 models accept 4 / 6 / 8 seconds. Only `omni-flash` accepts 10 seconds. A `--count` greater than one increases credit usage.
+Veo 3.1 models accept 4 / 6 / 8 seconds. Only `omni-flash` accepts 10 seconds. If `--duration` is omitted, Flow chooses its current default; the wrapper does not guarantee 4 seconds. A `--count` greater than one increases credit usage.
+
+`video extend` continues an existing clip as an 8-second segment and requires the project that owns the media ID. The wrapper adds the saved fixed project when one is configured; the example passes it explicitly for clarity. Its output is a Flow Scene rendered to the requested mp4 path. It may still be unavailable on an account migrated to the new Flow host.
+
+The Flow website may expose video resolution, editing, or upscale options that this CLI does not yet expose. The current 0.67 integration does not provide video 360p selection, video editing, or 1080p/4K video upscaling controls.
 
 ## Original Session Token image workflow
 
