@@ -15,13 +15,13 @@ A local CLI for generating Google Flow images and videos directly from a termina
 - Chrome token extension with a prefilled local server URL and health check
 - 2K / 4K image upscaling with original-image fallback
 
-Version 1.3.0 updates the integration to gflow-cli 0.67.x and adds text-to-image support plus the current image and video model catalog for the migrated Flow host.
+Version 1.3.0 adds text-to-image support on the migrated Flow host and refreshes the current image and video model catalog.
 
 > This is an unofficial tool that drives Google Flow web capabilities. Model availability, credits, and page behavior may vary by account, region, and future Flow updates. Generation consumes your Flow credits.
 
 ## Why this project
 
-The referenced projects cover a broader set of use cases and remain a better fit for platform services or deeper control. This repository intentionally keeps a smaller surface for everyday generation:
+This project focuses on everyday generation from a terminal or agent chat:
 
 - One `flow-cli` entry point that agents can call without coordinating multiple services
 - Login, image, and video commands under the same CLI
@@ -29,7 +29,7 @@ The referenced projects cover a broader set of use cases and remain a better fit
 - One result by default; when duration matters, the agent explicitly chooses 4 seconds when the current account/model exposes that control, while an omitted duration follows Flow's current default
 - A local token receiver and Chrome extension for compatibility with the original image workflow
 
-It is not intended to replace the referenced projects. Its focus is the shorter path from an agent request to a verified local media file.
+Its focus is the shortest path from an agent request to a verified local media file.
 
 ## Installation
 
@@ -50,8 +50,6 @@ git clone https://github.com/SoKeiKei/flow-image-cli.git
 cd flow-image-cli
 py -m pip install -e .
 ```
-
-This release uses `gflow-cli` 0.67.x (`>=0.67.0,<0.68.0`). Keep that dependency range when installing or upgrading so the command names and model catalog match this README.
 
 Verify the installation:
 
@@ -95,7 +93,7 @@ Clearing the setting does not delete the project in Flow. The setting is stored 
 
 After an account is migrated to the newer `flow.google.com` host, this project can generate text-to-image and text-to-video content in an existing Flow project. The migrated image path reuses the local browser login saved by `flow-cli auth login --browser chrome`; no manual token copy is needed.
 
-For a migrated account, start with `flow-cli auth status`, `flow-cli project show`, and a fixed existing project. Image-to-image, multi-reference editing, `video i2v`, `video r2v`, and `video extend` still use the upstream component and remain conditional until the current Flow host accepts them.
+For a migrated account, start with `flow-cli auth status`, `flow-cli project show`, and a fixed existing project. Image-to-image, multi-reference editing, `video i2v`, `video r2v`, and `video extend` are not guaranteed on the current Flow host and depend on what the account currently supports.
 
 ## Use from an agent chat
 
@@ -183,7 +181,7 @@ Veo 3.1 models accept 4 / 6 / 8 seconds. Only `omni-flash` accepts 10 seconds. I
 
 `video extend` continues an existing clip as an 8-second segment and requires the project that owns the media ID. The wrapper adds the saved fixed project when one is configured; the example passes it explicitly for clarity. Its output is a Flow Scene rendered to the requested mp4 path. It may still be unavailable on an account migrated to the new Flow host.
 
-The Flow website may expose video resolution, editing, or upscale options that this CLI does not yet expose. The current 0.67 integration does not provide video 360p selection, video editing, or 1080p/4K video upscaling controls.
+The Flow website may expose video resolution, editing, or upscale options that this CLI does not yet expose. The current CLI does not provide video 360p selection, video editing, or 1080p/4K video upscaling controls.
 
 ## Original Session Token image workflow
 
@@ -258,7 +256,7 @@ The root `config.toml` is a template. Set `FLOW_CONFIG` to read another path.
 - Run `flow-cli auth status` and confirm that generation also works in the Google Flow website.
 - Run `flow-cli project show` if tasks still create new projects.
 - Check account credits, output directory permissions, and free disk space.
-- A Flow UI update may require upgrading this project's pinned integration dependency.
+- A Flow UI update may require updating this project.
 
 ## Security
 
@@ -266,12 +264,6 @@ The root `config.toml` is a template. Set `FLOW_CONFIG` to read another path.
 - Do not expose complete tokens in chat or screenshots.
 - Keep `~/.flow-cli/token.json` and browser login data on the local machine.
 - The extension keeps token history in Chrome local storage; clear it from the popup when no longer needed.
-
-## Credits
-
-- Current image, video, and real-Chrome login support is provided through [gflow-cli](https://pypi.org/project/gflow-cli/).
-- The original image workflow was inspired by [Flow2API](https://github.com/TheSmallHanCat/flow2api).
-- The token extension was inspired by [Flow2API-Token-Updater](https://github.com/TheSmallHanCat/Flow2API-Token-Updater).
 
 ## License
 

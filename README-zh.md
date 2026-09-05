@@ -15,13 +15,13 @@ English README: [README.md](./README.md)
 - Chrome Token 插件默认连接本机服务并自动检查在线状态
 - 图片 2K / 4K 放大，失败时保底保存原图
 
-v1.3.0 已升级到 gflow-cli 0.67.x，并补上新版 Flow 网址的文生图通道和当前图片、视频模型清单。
+v1.3.0 已补上新版 Flow 网址的文生图通道，并更新当前图片、视频模型清单。
 
 > 本项目是非官方工具，会调用 Google Flow 网页能力。模型、额度和页面行为可能随账号、地区或 Flow 更新而变化。生成会消耗你的 Flow 额度。
 
 ## 为什么使用这个项目
 
-参考项目覆盖的场景更完整，也更适合需要平台服务或深度控制的用户。本项目选择保留一层轻量入口，重点解决日常生成：
+这个项目专注于终端和 Agent 窗口里的日常生成：
 
 - 安装后直接使用 `flow-cli`，Agent 不需要理解多套服务和接口
 - 把登录、图片和视频统一到同一个命令入口
@@ -29,7 +29,7 @@ v1.3.0 已升级到 gflow-cli 0.67.x，并补上新版 Flow 网址的文生图�
 - 默认只生成一个结果；需要控制时长时，如果当前账号和模型提供时长选项，Agent 会显式选择 4 秒；不传时长则使用 Flow 当前默认值
 - 保留本机 Token 服务和 Chrome 插件，兼容原有图片生成方式
 
-它并不是要替代参考项目，而是更偏向“在 Agent 窗口里说一句，就直接生成并返回文件”的使用方式。
+目标是在 Agent 窗口里说一句，就直接生成并返回文件。
 
 ## 安装
 
@@ -50,8 +50,6 @@ git clone https://github.com/SoKeiKei/flow-image-cli.git
 cd flow-image-cli
 py -m pip install -e .
 ```
-
-本版本使用 `gflow-cli` 0.67.x（`>=0.67.0,<0.68.0`）。安装或升级时请保持这个依赖范围，确保命令名称和模型清单与本文一致。
 
 确认安装：
 
@@ -97,7 +95,7 @@ flow-cli project clear
 
 账号迁移到新的 `flow.google.com` 网址后，本项目现在可以在已有 Flow 项目中进行文生图和文生视频。新版文生图会直接复用 `flow-cli auth login --browser chrome` 保存的本机登录状态，不需要手工复制 Token。
 
-迁移账号应先运行 `flow-cli auth status` 和 `flow-cli project show`，并使用一个已经存在的固定项目。图生图、多参考图编辑、`video i2v`、`video r2v` 和 `video extend` 仍由上游组件处理，在当前 Flow 网址上是否可用，需要以实际检查结果为准。
+迁移账号应先运行 `flow-cli auth status` 和 `flow-cli project show`，并使用一个已经存在的固定项目。图生图、多参考图编辑、`video i2v`、`video r2v` 和 `video extend` 在当前 Flow 网址上仍不保证可用，需要以账号实际支持为准。
 
 ## 在 Agent 窗口中调用
 
@@ -187,7 +185,7 @@ Veo 3.1 模型可选 4 / 6 / 8 秒。只有 `omni-flash` 支持 10 秒。不传 
 
 `video extend` 会把已有视频续接为一个 8 秒片段，并且必须使用拥有该媒体 ID 的项目。已经设置固定项目时，包装器会自动传入它；示例显式传入项目是为了让归属关系更清楚。结果会作为 Flow 场景渲染到指定的 mp4 路径。迁移到新 Flow 网址的账号仍可能无法使用它。
 
-Flow 网页可能提供视频分辨率、视频编辑或放大选项，但当前 CLI 尚未开放这些入口。当前 0.67 集成不提供视频 360p 选择、视频编辑或 1080p/4K 视频放大控制。
+Flow 网页可能提供视频分辨率、视频编辑或放大选项，但当前 CLI 尚未开放这些入口，也不提供视频 360p 选择、视频编辑或 1080p/4K 视频放大控制。
 
 ## 原有 Session Token 生图方式
 
@@ -281,12 +279,6 @@ py -m playwright install chromium
 - 不要在聊天或截图中展示完整 Token
 - `~/.flow-cli/token.json` 和浏览器登录资料只应保存在本机
 - 插件的 Token 历史会保存在 Chrome 本地存储中，可随时在插件中清除
-
-## 致谢
-
-- 最新图片、视频与真实 Chrome 登录能力复用 [gflow-cli](https://pypi.org/project/gflow-cli/)
-- 原有生图链路受 [Flow2API](https://github.com/TheSmallHanCat/flow2api) 启发
-- Token 插件受 [Flow2API-Token-Updater](https://github.com/TheSmallHanCat/Flow2API-Token-Updater) 启发
 
 ## 许可证
 
