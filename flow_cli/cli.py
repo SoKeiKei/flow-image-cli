@@ -41,7 +41,7 @@ def main():
   # 图片生成
   flow-cli image t2i "电影感的雨夜街道" --model nano2 -o street.png
 
-  # 未指定时 Agent 显式选择 4 秒；命令不传则使用 Flow 当前默认值
+  # flow.google.com 上只有 omni-flash 接受 --duration；Veo 省略时长（默认 8 秒）
   flow-cli video t2v "薄雾中的竹林" --model omni-flash --duration 4 -o bamboo.mp4
 
   # 文生图

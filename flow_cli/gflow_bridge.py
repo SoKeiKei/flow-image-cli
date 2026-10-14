@@ -15,12 +15,13 @@ _PROJECT_ID_PATTERN = re.compile(
 )
 _GENERATION_COMMANDS = {
     "image": {"t2i", "i2i"},
-    # ``extend`` is a project-scoped video operation in gflow-cli 0.67+.
+    # ``extend`` is a project-scoped video operation. Image-to-video on
+    # flow.google.com needs gflow-cli 0.85+.
     # ``chain`` deliberately stays out: it has no --project option.
     "video": {"t2v", "i2v", "r2v", "extend"},
 }
-GFLOW_CLI_MIN_VERSION = "0.67.0"
-GFLOW_CLI_MAX_VERSION = "0.68.0"
+GFLOW_CLI_MIN_VERSION = "0.85.0"
+GFLOW_CLI_MAX_VERSION = "0.86.0"
 _VERSION_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:\+[0-9A-Za-z.-]+)?$")
 
 

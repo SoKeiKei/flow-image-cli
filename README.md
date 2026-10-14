@@ -6,7 +6,7 @@ A local CLI for generating Google Flow images and videos directly from a termina
 
 ## Features
 
-- Text-to-image on the migrated Flow host, with legacy image-to-image and multi-reference entry points retained
+- Text-to-image on `flow.google.com`, plus image-to-video from a local image
 - Nano Banana 2 Lite, Nano Banana 2, and Nano Banana Pro
 - Text-to-video, image-to-video, first/last-frame video, and reference-to-video where the current Flow host supports them
 - Omni 1.1 Flash (`omni-flash`) and Veo 3.1 Lite / Fast / Quality
@@ -15,7 +15,7 @@ A local CLI for generating Google Flow images and videos directly from a termina
 - Chrome token extension with a prefilled local server URL and health check
 - 2K / 4K image upscaling with original-image fallback
 
-Version 1.3.0 adds text-to-image support on the migrated Flow host and refreshes the current image and video model catalog.
+Version 1.4.0 depends on gflow-cli 0.85. Image-to-video from a local image works on the migrated `flow.google.com` host starting with this release.
 
 > This is an unofficial tool that drives Google Flow web capabilities. Model availability, credits, and page behavior may vary by account, region, and future Flow updates. Generation consumes your Flow credits.
 
@@ -26,7 +26,7 @@ This project focuses on everyday generation from a terminal or agent chat:
 - One `flow-cli` entry point that agents can call without coordinating multiple services
 - Login, image, and video commands under the same CLI
 - Fixed-project reuse for clean, continuous agent conversations
-- One result by default; when duration matters, the agent explicitly chooses 4 seconds when the current account/model exposes that control, while an omitted duration follows Flow's current default
+- One result by default. On `flow.google.com`, `--duration` applies only to `omni-flash`; omit it for Veo and Flow uses the 8-second default
 - A local token receiver and Chrome extension for compatibility with the original image workflow
 
 Its focus is the shortest path from an agent request to a verified local media file.
@@ -48,8 +48,10 @@ Install https://github.com/SoKeiKei/flow-image-cli and check for missing depende
 ```bash
 git clone https://github.com/SoKeiKei/flow-image-cli.git
 cd flow-image-cli
-py -m pip install -e .
+pip install -e .
 ```
+
+On Windows, `py -m pip install -e .` works as well.
 
 Verify the installation:
 
@@ -66,7 +68,7 @@ Run this once before using the current image or video commands:
 flow-cli auth login --browser chrome
 ```
 
-Complete Google sign-in in the real Chrome window. Later terminal and agent sessions can reuse the saved login.
+The command opens real Chrome. Finish sign-in and reach the Flow editor. Stopping at the Google account page is not enough. Then confirm the session:
 
 ```bash
 flow-cli auth status
@@ -77,7 +79,7 @@ flow-cli auth status
 Copy the project ID from a Flow project URL and save it once:
 
 ```bash
-flow-cli project use <Flow project ID>
+flow-cli project use <id>
 flow-cli project show
 ```
 
@@ -89,11 +91,13 @@ flow-cli project clear
 
 Clearing the setting does not delete the project in Flow. The setting is stored in `~/.flow-cli/fixed-flow-project.json`; set `FLOW_CLI_HOME` to use another directory.
 
-## Current Flow host compatibility
+## Site migration
 
-After an account is migrated to the newer `flow.google.com` host, this project can generate text-to-image and text-to-video content in an existing Flow project. The migrated image path reuses the local browser login saved by `flow-cli auth login --browser chrome`; no manual token copy is needed.
+Google is moving Flow from `https://labs.google/fx/tools/flow` to `https://flow.google.com`.
 
-For a migrated account, start with `flow-cli auth status`, `flow-cli project show`, and a fixed existing project. Image-to-image, multi-reference editing, `video i2v`, `video r2v`, and `video extend` are not guaranteed on the current Flow host and depend on what the account currently supports.
+gflow-cli 0.67 could only run text-to-video on the new site. Image-to-video failed before submit with `FlowHostMigratedError` (exit 36). That path is fixed in gflow-cli 0.85+. This release requires `gflow-cli>=0.85.0,<0.86.0`, so local image-to-video runs on `flow.google.com`.
+
+For a migrated account, start with `flow-cli auth status`, `flow-cli project show`, and an existing project. The migrated image path reuses the local browser login saved by `flow-cli auth login --browser chrome`; no manual token copy is needed.
 
 ## Use from an agent chat
 
@@ -103,7 +107,7 @@ Paste a request like this into a new agent window:
 Use the local flow-cli and its saved Flow login.
 First run flow-cli auth status and flow-cli project show.
 Reuse the fixed Flow project and do not create a new project.
-Generate exactly one result. If the user did not specify a video duration, explicitly pass `--duration 4` when the current account/model supports the duration control. If the user specified a duration, pass that value unchanged. If `--duration` is omitted, Flow chooses its current default.
+Generate exactly one result. On flow.google.com, pass --duration only with omni-flash. Omit --duration for Veo; the default is 8 seconds. Passing --duration to Veo exits 11 with ConfigurationError before submit.
 Verify that the saved file opens, then return its absolute path.
 
 Request:
@@ -118,15 +122,15 @@ After installing this tool, paste the following prompt into an agent window to c
 Create a Skill named flow-media for the locally installed flow-cli, and install it in a Skill directory discoverable by the current agent.
 Trigger it when I ask to generate images with Gemini/Flow, videos with Veo/Flow, or image-to-video content.
 Before generation, run flow-cli auth status and flow-cli project show. Reuse the fixed project and do not create a new project.
-Generate one result by default. If the user did not specify a video duration, explicitly pass `--duration 4` when the current account/model supports the duration control. If the user specified a duration, pass that value unchanged. If `--duration` is omitted, Flow chooses its current default. Verify that the output file opens and return its absolute path.
+Generate one result by default. On flow.google.com, pass --duration only with omni-flash. Omit --duration for Veo; the default is 8 seconds. Passing --duration to Veo exits 11 with ConfigurationError before submit. Verify that the output file opens and return its absolute path.
 Validate the Skill, and never store tokens, cookies, or login data in it.
 ```
 
 ## Image generation
 
 ```bash
-# Nano Banana 2
-flow-cli image t2i "cinematic rainy street at night" --model nano2 --aspect 16:9 -n 1 -o output\street.png
+# Nano Banana 2, 9:16
+flow-cli image t2i "<prompt>" --model nano2 --aspect 9:16 --project <id> -o out.png
 
 # Nano Banana Pro
 flow-cli image t2i "minimal product photography" --model nano-pro --aspect 1:1 -n 1 -o output\product.png
@@ -150,36 +154,36 @@ Image aspects: `9:16`, `16:9`, `1:1`, `4:3`, and `3:4`. The default count is one
 
 ## Video generation
 
-These examples generate one video and explicitly request 4 seconds. This is the Agent convention when the user does not specify a duration; it is not a forced wrapper default. Pass the user's requested duration unchanged. If `--duration` is omitted, Flow chooses its current default, and an account/model without a duration control may reject the command before submission:
+On `flow.google.com`, `--duration` works only with `omni-flash`. Omit it for Veo (`veo-lite`, `veo-fast`, `veo-quality`). Flow then uses the 8-second default. Passing `--duration` to Veo fails before submit with `ConfigurationError` (exit 11).
 
 ```bash
-# Text-to-video
+# Image-to-video on flow.google.com (no duration for Veo)
+flow-cli video i2v -i selfie.png --aspect 9:16 --model veo-fast --project <id> -o out.mp4 "<prompt>"
+
+# Text-to-video (only omni-flash accepts a duration)
 flow-cli video t2v "slow push through a misty bamboo forest at dawn" --model omni-flash --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
 
-# Animate a generated image
-flow-cli video i2v output\street.png "rain falls slowly as the camera moves forward" --model veo-lite --duration 4 --count 1 --aspect 16:9 -o output\street.mp4
+# First/last-frame transition (omit --duration for Veo)
+flow-cli video i2v --initial-frame first.png --end-frame last.png "smooth cinematic transition" --model veo-fast --count 1 -o output\transition.mp4
 
-# First/last-frame transition
-flow-cli video i2v --initial-frame first.png --end-frame last.png "smooth cinematic transition" --model veo-fast --duration 4 --count 1 -o output\transition.mp4
-
-# Reference-to-video
+# Reference-to-video (omni-flash accepts a duration)
 flow-cli video r2v "the two characters meet in the rain" --ref person-a.png --ref person-b.png --model omni-flash --duration 4 --count 1 -o output\meeting.mp4
 
 # Continue an existing clip (pass the project explicitly, or use the saved fixed project)
-flow-cli video extend <media-id> "the wave recedes" --project <Flow project ID> --aspect 16:9 -o output\continued.mp4
+flow-cli video extend <media-id> "the wave recedes" --project <id> --aspect 16:9 -o output\continued.mp4
 ```
 
 Video aliases:
 
-- `omni-flash`: Omni 1.1 Flash; up to 7 references; 4 / 6 / 8 / 10 seconds
+- `omni-flash`: Omni 1.1 Flash; up to 7 references; accepts `--duration` on `flow.google.com`
 - `veo-lite`: Veo 3.1 Lite; cost-oriented; up to 3 references
 - `veo-fast`: Veo 3.1 Fast; speed-oriented; up to 3 references
 - `veo-quality`: Veo 3.1 Quality; quality-oriented; no reference-to-video support
 - `veo-lite-lp`: lower-priority Veo 3.1 Lite alias; availability may vary by account, region, and the current Flow UI
 
-Veo 3.1 models accept 4 / 6 / 8 seconds. Only `omni-flash` accepts 10 seconds. If `--duration` is omitted, Flow chooses its current default; the wrapper does not guarantee 4 seconds. A `--count` greater than one increases credit usage.
+On `flow.google.com`, omit `--duration` for Veo and keep the 8-second default. Only `omni-flash` accepts a duration: 4 / 6 / 8 / 10 seconds. A `--count` greater than one increases credit usage.
 
-`video extend` continues an existing clip as an 8-second segment and requires the project that owns the media ID. The wrapper adds the saved fixed project when one is configured; the example passes it explicitly for clarity. Its output is a Flow Scene rendered to the requested mp4 path. It may still be unavailable on an account migrated to the new Flow host.
+`video extend` continues an existing clip as an 8-second segment and requires the project that owns the media ID. The wrapper adds the saved fixed project when one is configured. Its output is a Flow Scene rendered to the requested mp4 path. It may still be unavailable on an account migrated to the new Flow host.
 
 The Flow website may expose video resolution, editing, or upscale options that this CLI does not yet expose. The current CLI does not provide video 360p selection, video editing, or 1080p/4K video upscaling controls.
 
@@ -253,10 +257,29 @@ The root `config.toml` is a template. Set `FLOW_CONFIG` to read another path.
 
 ## Troubleshooting
 
-- Run `flow-cli auth status` and confirm that generation also works in the Google Flow website.
-- Run `flow-cli project show` if tasks still create new projects.
-- Check account credits, output directory permissions, and free disk space.
-- A Flow UI update may require updating this project.
+### Login succeeded but generation fails
+
+Run `flow-cli auth status`. The status should show that Flow itself is signed in, not only the Google account. Confirm that generation also works in the Google Flow website, and check account credits. A Flow UI update may require updating this project.
+
+### auth status logs SecurityError without a system keyring
+
+Without a system keyring, cookie reads fall back to Playwright. Playwright needs the marker file `<profile>/.gflow_browser_strategy` containing `chrome`. If that file is missing, `flow-cli auth status` logs `auth_flow_session_probe_error` with `SecurityError`.
+
+Fix: run `flow-cli auth login --browser chrome` again, or recreate the marker file in that profile with the contents `chrome`.
+
+### Google is signed in, but the Flow app is not
+
+If the profile only visited `flow.google.com`, it may lack the labs.google Flow sign-in. `flow-cli auth status` then says Google is signed in but the Flow app is not. Open `https://labs.google/fx/tools/flow` in that same profile, complete Sign in with Google, and run `flow-cli auth status` again.
+
+### Tasks still create a new project
+
+Run `flow-cli project show`. If no project is fixed, set one with `flow-cli project use <id>`. The image and video generation commands above inject that project. `video chain` has no `--project` option and is left unchanged.
+
+### Veo exits as soon as a duration is passed
+
+On `flow.google.com`, passing `--duration` to Veo fails before submit with `ConfigurationError` (exit 11). Omit `--duration` and keep the 8-second default. Only `omni-flash` accepts the flag.
+
+Also check the output directory permissions and free disk space.
 
 ## Security
 

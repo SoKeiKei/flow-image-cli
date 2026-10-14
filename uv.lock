@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -333,7 +333,7 @@ wheels = [
 
 [[package]]
 name = "flow-cli"
-version = "1.3.0"
+version = "1.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "curl-cffi" },
@@ -352,7 +352,7 @@ dev = [
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "curl-cffi", specifier = ">=0.7.0" },
-    { name = "gflow-cli", specifier = ">=0.67.0,<0.68.0" },
+    { name = "gflow-cli", specifier = ">=0.85.0,<0.86.0" },
     { name = "pillow", specifier = ">=9.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "tomli", specifier = ">=2.0.0" },
@@ -361,11 +361,12 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "gflow-cli"
-version = "0.67.0"
+version = "0.85.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "browser-cookie3" },
     { name = "click" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "mcp" },
@@ -378,9 +379,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/49/db936434587411a51831ecf0257d928b8110a7b05017720a0a256721e57d/gflow_cli-0.67.0.tar.gz", hash = "sha256:1a4f25093cb464924b5417f9e49b6277328cdd79b15a62aab0b0b1ed81fff427", size = 4967150, upload-time = "2026-09-05T08:21:56.284Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/30/d6b0d48295f05ee002b0098b2a01bcda2671f5644dfb0feddf79cc35a6d0/gflow_cli-0.85.0.tar.gz", hash = "sha256:1a730de16da578ed52d95bf03f699afd4c9cc895c3ced6f4ad38e794615a7d49", size = 6159350, upload-time = "2026-10-14T14:40:51.531Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f8/ed/84f89f609279e3e4af30f8d1b8dffea466e55933427a5e74e4c9496560d1/gflow_cli-0.67.0-py3-none-any.whl", hash = "sha256:dfa63090d1d5afd51a27263dac8622735978b3f5206a207e091b76aa1241e97d", size = 662187, upload-time = "2026-09-05T08:21:54.16Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/47/73dc54e17f2011e8f4c91905af09649debceb704bdb581a15c701b67c575/gflow_cli-0.85.0-py3-none-any.whl", hash = "sha256:e8facfc16e82eba80c91b7ba7955278f41d0c943cf22bd5075bb79f5460292e1", size = 1480933, upload-time = "2026-10-14T14:40:49.219Z" },
 ]
 
 [[package]]
@@ -487,8 +488,8 @@ name = "httpcore2"
 version = "2.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "python_full_version < '3.12' or python_full_version >= '3.14' or sys_platform != 'emscripten'" },
-    { name = "truststore", marker = "python_full_version < '3.12' or python_full_version >= '3.14' or sys_platform != 'emscripten'" },
+    { name = "h11" },
+    { name = "truststore" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a9/83/a896fc59940fc5a6e2aff3a4be1d92fa890112936803b331cae75a993c34/httpcore2-2.10.0.tar.gz", hash = "sha256:13c0cc3d1919d4f28457f60cd2c2abe04113a8af184ccf1142811beba936f9dc", size = 67427, upload-time = "2026-08-09T09:11:32.123Z" }
 wheels = [
@@ -1406,7 +1407,7 @@ name = "shadowcopy"
 version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "wmi", marker = "python_full_version < '3.12' or python_full_version >= '3.14' or sys_platform != 'emscripten'" },
+    { name = "wmi" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/12/44/c00420a3b7bcdf830529b933392b566c876a4944a24f31e126eb6fd28647/shadowcopy-0.0.4.tar.gz", hash = "sha256:ed89817dda065f893607a04c0b7d6b3b34c3507a4711f441111a4bcb1b1826c0", size = 4138, upload-time = "2023-07-08T00:01:35.266Z" }
 wheels = [
@@ -1826,7 +1827,7 @@ name = "wmi"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pywin32", marker = "python_full_version < '3.12' or python_full_version >= '3.14' or sys_platform != 'emscripten'" },
+    { name = "pywin32" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d4/66/6364deb0a03415f96c66803d8c4379f808f2401da3bdb183348487b10510/WMI-1.5.1.tar.gz", hash = "sha256:b6a6be5711b1b6c8d55bda7a8befd75c48c12b770b9d227d31c1737dbf0d40a6", size = 26254, upload-time = "2020-04-28T08:22:58.096Z" }
 wheels = [
