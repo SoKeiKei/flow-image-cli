@@ -29,7 +29,7 @@ COMPOSER = "[contenteditable='true']"
 
 MODEL_LABELS = {
     "nano-pro": "Nano Banana Pro",
-    "nano2": "Nano Banana 2",
+    "nano2": "Nano Banana 2.1",
     "nano2-lite": "Nano Banana 2 Lite",
 }
 ASPECT_ICONS = {
@@ -63,6 +63,17 @@ class ImageRequest:
 
 def _exact(text: str) -> re.Pattern[str]:
     return re.compile(r"^\s*" + re.escape(text) + r"\s*$")
+
+
+def _model_menu_matches(label: str, item_text: str) -> bool:
+    """菜单项是否就是所请求的模型。Lite 不能被非 Lite 名称子串命中。"""
+    label_text = " ".join(label.split()).lower()
+    item = " ".join(item_text.split()).lower()
+    if label_text not in item:
+        return False
+    if "lite" not in label_text and "lite" in item:
+        return False
+    return True
 
 
 def _icon(page: Any, name: str) -> Any:
@@ -235,7 +246,7 @@ class MigratedImageComposer:
         if not await button.count():
             raise RuntimeError("新版 Flow 图片模型选择器不存在")
         current = " ".join((await button.inner_text()).split())
-        if label.lower() in current.lower():
+        if _model_menu_matches(label, current):
             return
         await button.click(timeout=5_000)
         items = page.locator(MENU_ITEM)
@@ -247,8 +258,7 @@ class MigratedImageComposer:
         matching_indexes = [
             index
             for index, item_text in enumerate(offered)
-            if label.lower() in item_text.lower()
-            and not (label == "Nano Banana 2" and "lite" in item_text.lower())
+            if _model_menu_matches(label, item_text)
         ]
         if not matching_indexes:
             raise RuntimeError(
@@ -360,7 +370,7 @@ def run_migrated_t2i(arguments: Sequence[str]) -> int:
 def print_current_models() -> int:
     print("当前图片模型:")
     print("  nano2-lite  Nano Banana 2 Lite（成本最低）")
-    print("  nano2       Nano Banana 2")
+    print("  nano2       Nano Banana 2.1")
     print("  nano-pro    Nano Banana Pro")
     print("\n当前视频模型:")
     print("  omni-flash  Omni 1.1 Flash")

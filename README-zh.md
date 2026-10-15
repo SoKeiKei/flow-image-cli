@@ -7,7 +7,7 @@ English README: [README.md](./README.md)
 ## 功能
 
 - 新版 Flow 网址 `flow.google.com` 上的文生图，以及本地图片的图生视频
-- Nano Banana 2 Lite、Nano Banana 2、Nano Banana Pro
+- Nano Banana 2 Lite、Nano Banana 2.1、Nano Banana Pro
 - 文生视频、图生视频、首尾帧视频和参考图视频（以当前 Flow 网址实际支持为准）
 - Omni 1.1 Flash（命令别名 `omni-flash`）与 Veo 3.1 Lite / Fast / Quality
 - 固定复用同一个 Flow 项目，避免每次生成都新建项目
@@ -133,7 +133,7 @@ gflow-cli 0.67 在新网址上只能做文生视频。图生视频会在提交�
 ## 图片生成
 
 ```bash
-# Nano Banana 2 文生图（9:16）
+# Nano Banana 2.1 文生图（9:16）
 flow-cli image t2i "<prompt>" --model nano2 --aspect 9:16 --project <id> -o out.png
 
 # Nano Banana Pro 文生图
@@ -149,7 +149,7 @@ flow-cli image i2i "保持人物一致，改成冬季雪景" --ref person.jpg --
 图片模型：
 
 - `nano2-lite`：Nano Banana 2 Lite，当前最低成本选择
-- `nano2`：Nano Banana 2
+- `nano2`：Nano Banana 2.1。Flow 已在 `flow.google.com` 上用它替换 Nano Banana 2，命令别名仍是 `nano2`
 - `nano-pro`：Nano Banana Pro
 
 新版 Flow 页面已不再提供 Imagen 4，因此 `image4` / `imagen4` 不再列为可用模型。

@@ -8,6 +8,7 @@ from PIL import Image
 from flow_cli.migrated_image import (
     MODEL_LABELS,
     _image_format,
+    _model_menu_matches,
     _save_image,
     parse_t2i_request,
 )
@@ -21,7 +22,7 @@ class MigratedImageTests(unittest.TestCase):
             MODEL_LABELS,
             {
                 "nano-pro": "Nano Banana Pro",
-                "nano2": "Nano Banana 2",
+                "nano2": "Nano Banana 2.1",
                 "nano2-lite": "Nano Banana 2 Lite",
             },
         )
@@ -47,6 +48,18 @@ class MigratedImageTests(unittest.TestCase):
         self.assertEqual(request.model, "nano2-lite")
         self.assertEqual(request.aspect, "16:9")
         self.assertEqual(request.output, Path("output/cat.png"))
+
+    def test_nano2_label_matches_2_1_and_not_lite(self):
+        label = MODEL_LABELS["nano2"]
+        self.assertTrue(_model_menu_matches(label, "Nano Banana 2.1"))
+        self.assertFalse(_model_menu_matches(label, "Nano Banana 2 Lite"))
+        self.assertFalse(_model_menu_matches(label, "Nano Banana 2.1 Lite"))
+        self.assertTrue(
+            _model_menu_matches(MODEL_LABELS["nano2-lite"], "Nano Banana 2 Lite")
+        )
+        self.assertFalse(
+            _model_menu_matches(MODEL_LABELS["nano2-lite"], "Nano Banana 2.1")
+        )
 
     def test_rejects_multiple_images_with_one_output_path(self):
         with self.assertRaisesRegex(ValueError, "只能生成 1 张"):

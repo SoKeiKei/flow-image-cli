@@ -7,7 +7,7 @@ A local CLI for generating Google Flow images and videos directly from a termina
 ## Features
 
 - Text-to-image on `flow.google.com`, plus image-to-video from a local image
-- Nano Banana 2 Lite, Nano Banana 2, and Nano Banana Pro
+- Nano Banana 2 Lite, Nano Banana 2.1, and Nano Banana Pro
 - Text-to-video, image-to-video, first/last-frame video, and reference-to-video where the current Flow host supports them
 - Omni 1.1 Flash (`omni-flash`) and Veo 3.1 Lite / Fast / Quality
 - Reuse one fixed Flow project instead of creating a project for every task
@@ -129,7 +129,7 @@ Validate the Skill, and never store tokens, cookies, or login data in it.
 ## Image generation
 
 ```bash
-# Nano Banana 2, 9:16
+# Nano Banana 2.1, 9:16
 flow-cli image t2i "<prompt>" --model nano2 --aspect 9:16 --project <id> -o out.png
 
 # Nano Banana Pro
@@ -145,7 +145,7 @@ flow-cli image i2i "keep the person consistent and change the scene to winter" -
 Image aliases:
 
 - `nano2-lite`: Nano Banana 2 Lite, currently the lowest-cost option
-- `nano2`: Nano Banana 2
+- `nano2`: Nano Banana 2.1. Flow replaced Nano Banana 2 with it on `flow.google.com`; the command alias remains `nano2`
 - `nano-pro`: Nano Banana Pro
 
 The migrated Flow page no longer offers Imagen 4, so `image4` / `imagen4` are no longer listed as available models.
