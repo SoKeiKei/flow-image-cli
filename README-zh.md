@@ -8,7 +8,7 @@ English README: [README.md](./README.md)
 
 - 新版 Flow 网址上的文生图；旧网址仍保留图生图和多参考图编辑入口
 - Nano Banana 2 Lite、Nano Banana 2、Nano Banana Pro
-- 文生视频、图生视频、首尾帧视频和参考图视频（以当前 Flow 网址实际支持为准）
+- 新版 `flow.google.com` 的文生视频、素材参考视频、首帧视频和首尾帧视频
 - Omni 1.1 Flash（命令别名 `omni-flash`）与 Veo 3.1 Lite / Fast / Quality
 - 固定复用同一个 Flow 项目，避免每次生成都新建项目
 - 真实 Chrome 登录，并保留原有 Session Token 生图方式
@@ -26,7 +26,7 @@ v1.3.0 已补上新版 Flow 网址的文生图通道，并更新当前图片、�
 - 安装后直接使用 `flow-cli`，Agent 不需要理解多套服务和接口
 - 把登录、图片和视频统一到同一个命令入口
 - 可以固定复用一个 Flow 项目，连续对话生成时不会把项目列表弄乱
-- 默认只生成一个结果；需要控制时长时，如果当前账号和模型提供时长选项，Agent 会显式选择 4 秒；不传时长则使用 Flow 当前默认值
+- 默认只生成一个结果、4 秒、720p；模型必须显式指定，所有配置都会在提交前回读核对
 - 保留本机 Token 服务和 Chrome 插件，兼容原有图片生成方式
 
 目标是在 Agent 窗口里说一句，就直接生成并返回文件。
@@ -93,9 +93,9 @@ flow-cli project clear
 
 ## 当前 Flow 网址的兼容边界
 
-账号迁移到新的 `flow.google.com` 网址后，本项目现在可以在已有 Flow 项目中进行文生图和文生视频。新版文生图会直接复用 `flow-cli auth login --browser chrome` 保存的本机登录状态，不需要手工复制 Token。
+账号迁移到新的 `flow.google.com` 网址后，本项目可以在已有 Flow 项目中进行文生图、文生视频、素材参考视频、首帧视频和首尾帧视频。新版链路会直接复用 `flow-cli auth login --browser chrome` 保存的本机登录状态，不需要手工复制 Token。
 
-迁移账号应先运行 `flow-cli auth status` 和 `flow-cli project show`，并使用一个已经存在的固定项目。图生图、多参考图编辑、`video i2v`、`video r2v` 和 `video extend` 在当前 Flow 网址上仍不保证可用，需要以账号实际支持为准。
+迁移账号应先运行 `flow-cli auth status` 和 `flow-cli project show`，并使用一个已经存在的固定项目。素材参考统一使用 `video r2v`，单张、多张都进入网页“素材”模式；本地图片使用 `--ref`，项目中已有的素材使用 `--project-ref` 加素材的精确标题，两种来源可以混用。只有用户明确要求首帧或首尾帧时才使用 `video i2v` 和网页“帧”模式。`video extend` 仍取决于账号是否开放。
 
 ## 在 Agent 窗口中调用
 
@@ -105,7 +105,8 @@ flow-cli project clear
 请使用本机 flow-cli 和已经保存的 Flow 登录状态生成内容。
 先运行 flow-cli auth status 和 flow-cli project show。
 必须复用固定 Flow 项目，不要新建项目。
-只生成一个结果；用户未指定视频时长时，如果当前账号和模型支持时长选项，就显式传 `--duration 4`；用户指定时长则原样传递。不传 `--duration` 时由 Flow 当前默认值决定。
+素材参考使用 `video r2v`，单张或多张都走“素材”；按素材来源自行选择本地图片 `--ref` 或项目已有素材 `--project-ref`，需要时可混用。只有明确要求首帧或首尾帧时才使用 `video i2v`。
+模型必须显式指定。画幅、清晰度、时长和数量按用户要求传入；未指定时长和清晰度时分别使用 4 秒和 720p。提交前必须回读全部配置，任一不符就停止，不能换模式继续。
 生成后确认文件可以打开，并把绝对路径发给我。
 
 具体要求：
@@ -122,7 +123,7 @@ flow-cli project clear
 请把本机已经安装的 flow-cli 制作成一个名为 flow-media 的 Skill，并安装到当前 Agent 能发现的 Skill 目录。
 当我说“用 Gemini/Flow 生图”“用 Veo/Flow 生视频”或“图生视频”时自动使用它。
 每次生成前先检查 flow-cli auth status 和 flow-cli project show，必须复用固定项目，不要新建项目。
-默认只生成一个结果；用户未指定视频时长时，如果当前账号和模型支持时长选项，就显式传 `--duration 4`；用户指定时长则原样传递。不传 `--duration` 时由 Flow 当前默认值决定。生成后检查文件可以正常打开，并返回绝对路径。
+素材参考统一使用 `video r2v` 和网页“素材”模式，单张、多张都适用；本地图片使用 `--ref`，固定项目已有素材使用 `--project-ref "精确标题"`，两者可重复或混用，由你按现有输入选择。只有明确要求首帧或首尾帧时才使用 `video i2v` 和网页“帧”模式。模型必须显式指定，画幅、清晰度、时长和数量按用户要求传入；未指定时长和清晰度时分别使用 4 秒和 720p。提交前回读全部配置，任一不符就停止，不得自动换模式。生成后检查文件可以正常打开，并返回绝对路径。
 请完成 Skill 校验，不要把 Token、Cookie 或登录资料写入 Skill。
 ```
 
@@ -154,20 +155,26 @@ flow-cli image i2i "保持人物一致，改成冬季雪景" --ref person.jpg --
 
 ## 视频生成
 
-以下示例都只生成 1 个，并显式请求 4 秒。这是用户未指定时长时给 Agent 的建议，不是包装器强制默认值。用户指定时长时原样传递；不传 `--duration` 时由 Flow 当前默认值决定。如果当前账号或模型没有时长选项，命令可能在提交前拒绝执行：
+以下示例都只生成 1 个，并显式请求 4 秒和 720p。用户指定时按用户参数设置；当前账号或模型没有对应选项时，命令会在提交前拒绝执行：
 
 ```bash
 # 文生视频
-flow-cli video t2v "镜头缓慢推进清晨薄雾中的竹林" --model omni-flash --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
+flow-cli video t2v "镜头缓慢推进清晨薄雾中的竹林" --model omni-flash --resolution 720p --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
 
-# 图片生成后做图生视频
-flow-cli video i2v output\street.png "雨水缓慢落下，镜头轻微前移" --model veo-lite --duration 4 --count 1 --aspect 16:9 -o output\street.mp4
+# 明确指定首帧
+flow-cli video i2v output\street.png "雨水缓慢落下，镜头轻微前移" --model veo-lite --resolution 720p --duration 4 --count 1 --aspect 16:9 -o output\street.mp4
 
 # 首尾帧过渡
-flow-cli video i2v --initial-frame first.png --end-frame last.png "平滑的电影感转场" --model veo-fast --duration 4 --count 1 -o output\transition.mp4
+flow-cli video i2v --initial-frame first.png --end-frame last.png "平滑的电影感转场" --model veo-fast --resolution 720p --duration 4 --count 1 -o output\transition.mp4
 
-# 多参考图视频
-flow-cli video r2v "两名角色在雨中相遇" --ref person-a.png --ref person-b.png --model omni-flash --duration 4 --count 1 -o output\meeting.mp4
+# 本地素材参考视频（单张、多张都使用 r2v/素材）
+flow-cli video r2v "两名角色在雨中相遇" --ref person-a.png --ref person-b.png --model omni-flash --resolution 720p --duration 4 --count 1 -o output\meeting.mp4
+
+# 复用固定项目中已有素材（按素材卡片的精确标题选择，不重新上传）
+flow-cli video r2v "镜头缓慢掠过已有场景" --project-ref "首张横版场景图" --model veo-fast --resolution 360p --duration 8 --count 1 --aspect 16:9 -o output\scene.mp4
+
+# 本地素材与项目已有素材可以混用
+flow-cli video r2v "角色走入已有场景" --ref person.png --project-ref "首张横版场景图" --model omni-flash --resolution 720p --duration 6 --count 2 --aspect 9:16 -o output\mixed.mp4
 
 # 续接已有视频（可显式提供项目，也可使用已保存的固定项目）
 flow-cli video extend <media-id> "海浪退去" --project <Flow 项目 ID> --aspect 16:9 -o output\continued.mp4
@@ -181,11 +188,15 @@ flow-cli video extend <media-id> "海浪退去" --project <Flow 项目 ID> --asp
 - `veo-quality`：Veo 3.1 Quality，质量优先，不支持参考图视频
 - `veo-lite-lp`：低优先级的 Veo 3.1 Lite 别名；是否可用可能随账号、地区和当前 Flow 页面变化
 
-Veo 3.1 模型可选 4 / 6 / 8 秒。只有 `omni-flash` 支持 10 秒。不传 `--duration` 时由 Flow 当前默认值决定，包装器不保证默认 4 秒。`--count` 大于 1 会增加额度消耗。
+Veo 3.1 模型可选 4 / 6 / 8 秒。只有 `omni-flash` 支持 10 秒。未传 `--duration` 时命令使用 4 秒，未传 `--resolution` 时使用 720p；两项仍会真实选择并回读，不依赖网页上次状态。`--count` 大于 1 会增加额度消耗。
+
+素材图片保持原始画幅，不会因为输出视频选择了 9:16 或 16:9 而预先裁切。本地素材会原样上传；项目已有素材会直接从当前项目的“素材”选择器按精确标题选取，不会重复上传。标题找不到或同名不唯一时会在提交前停止。素材画幅与输出画幅是两套独立设置。
+
+视频保存使用详情页“下载成片”所走的原始文件导出链路，不再使用播放器的低码率预览地址。原始文件导出失败时会停止并报错，不会静默退回低码率版本。
 
 `video extend` 会把已有视频续接为一个 8 秒片段，并且必须使用拥有该媒体 ID 的项目。已经设置固定项目时，包装器会自动传入它；示例显式传入项目是为了让归属关系更清楚。结果会作为 Flow 场景渲染到指定的 mp4 路径。迁移到新 Flow 网址的账号仍可能无法使用它。
 
-Flow 网页可能提供视频分辨率、视频编辑或放大选项，但当前 CLI 尚未开放这些入口，也不提供视频 360p 选择、视频编辑或 1080p/4K 视频放大控制。
+`--resolution` 支持 360p 和 720p。视频编辑及 1080p/4K 视频放大仍未开放。
 
 ## 原有 Session Token 生图方式
 

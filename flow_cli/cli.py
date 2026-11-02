@@ -41,8 +41,8 @@ def main():
   # 图片生成
   flow-cli image t2i "电影感的雨夜街道" --model nano2 -o street.png
 
-  # 未指定时 Agent 显式选择 4 秒；命令不传则使用 Flow 当前默认值
-  flow-cli video t2v "薄雾中的竹林" --model omni-flash --duration 4 -o bamboo.mp4
+  # 每次都显式设置并核对时长与清晰度，不沿用 Flow 上次保存的值
+  flow-cli video t2v "薄雾中的竹林" --model omni-flash --resolution 720p --duration 4 -o bamboo.mp4
 
   # 文生图
   flow-cli generate "一只可爱的猫咪在花园里玩耍"

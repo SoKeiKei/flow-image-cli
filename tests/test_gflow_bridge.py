@@ -24,7 +24,7 @@ class GflowBridgeTests(unittest.TestCase):
         self.home_patch.start()
         self.version_patch = patch(
             "flow_cli.gflow_bridge.get_installed_gflow_version",
-            return_value="0.67.0",
+            return_value="0.69.0",
         )
         self.version_patch.start()
 
@@ -52,7 +52,7 @@ class GflowBridgeTests(unittest.TestCase):
 
         self.assertEqual(result, 2)
         self.assertIn("0.53.1", output.getvalue())
-        self.assertIn(">=0.67.0,<0.68.0", output.getvalue())
+        self.assertIn(">=0.69.0,<0.70.0", output.getvalue())
         run.assert_not_called()
 
     @patch("flow_cli.gflow_bridge.subprocess.run")
@@ -75,7 +75,7 @@ class GflowBridgeTests(unittest.TestCase):
 
         self.assertEqual(result, 7)
         command = run.call_args.args[0]
-        self.assertEqual(command[1:4], ["-m", "gflow_cli", "video"])
+        self.assertEqual(command[1:4], ["-m", "flow_cli.gflow_runner", "video"])
         self.assertEqual(command[4:], ["t2v", "一只猫", "--model", "omni-flash"])
         environment = run.call_args.kwargs["env"]
         self.assertEqual(environment["PYTHONUTF8"], os.environ.get("PYTHONUTF8", "1"))
@@ -101,7 +101,9 @@ class GflowBridgeTests(unittest.TestCase):
         result = run_gflow("models", [], show_help_when_empty=False)
 
         self.assertEqual(result, 0)
-        self.assertEqual(run.call_args.args[0][-3:], ["-m", "gflow_cli", "models"])
+        self.assertEqual(
+            run.call_args.args[0][-3:], ["-m", "flow_cli.gflow_runner", "models"]
+        )
 
     @patch("flow_cli.gflow_bridge.subprocess.run")
     @patch("flow_cli.gflow_bridge.importlib.util.find_spec", return_value=object())

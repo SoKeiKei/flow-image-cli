@@ -19,8 +19,8 @@ _GENERATION_COMMANDS = {
     # ``chain`` deliberately stays out: it has no --project option.
     "video": {"t2v", "i2v", "r2v", "extend"},
 }
-GFLOW_CLI_MIN_VERSION = "0.67.0"
-GFLOW_CLI_MAX_VERSION = "0.68.0"
+GFLOW_CLI_MIN_VERSION = "0.69.0"
+GFLOW_CLI_MAX_VERSION = "0.70.0"
 _VERSION_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:\+[0-9A-Za-z.-]+)?$")
 
 
@@ -160,7 +160,7 @@ def run_gflow(
     environment.setdefault("GFLOW_CLI_OUTPUT_DIR", str(Path.cwd() / "output"))
 
     process = subprocess.run(
-        [sys.executable, "-m", "gflow_cli", command, *forwarded_arguments],
+        [sys.executable, "-m", "flow_cli.gflow_runner", command, *forwarded_arguments],
         env=environment,
         check=False,
     )

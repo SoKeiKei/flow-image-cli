@@ -8,7 +8,7 @@ A local CLI for generating Google Flow images and videos directly from a termina
 
 - Text-to-image on the migrated Flow host, with legacy image-to-image and multi-reference entry points retained
 - Nano Banana 2 Lite, Nano Banana 2, and Nano Banana Pro
-- Text-to-video, image-to-video, first/last-frame video, and reference-to-video where the current Flow host supports them
+- Text-to-video, material-reference video, first-frame video, and first/last-frame video on the migrated `flow.google.com` host
 - Omni 1.1 Flash (`omni-flash`) and Veo 3.1 Lite / Fast / Quality
 - Reuse one fixed Flow project instead of creating a project for every task
 - Real Chrome login, plus the original Session Token image workflow
@@ -26,7 +26,7 @@ This project focuses on everyday generation from a terminal or agent chat:
 - One `flow-cli` entry point that agents can call without coordinating multiple services
 - Login, image, and video commands under the same CLI
 - Fixed-project reuse for clean, continuous agent conversations
-- One result by default; when duration matters, the agent explicitly chooses 4 seconds when the current account/model exposes that control, while an omitted duration follows Flow's current default
+- One result, 4 seconds, and 720p by default; the model is explicit and every setting is read back before submission
 - A local token receiver and Chrome extension for compatibility with the original image workflow
 
 Its focus is the shortest path from an agent request to a verified local media file.
@@ -91,9 +91,9 @@ Clearing the setting does not delete the project in Flow. The setting is stored 
 
 ## Current Flow host compatibility
 
-After an account is migrated to the newer `flow.google.com` host, this project can generate text-to-image and text-to-video content in an existing Flow project. The migrated image path reuses the local browser login saved by `flow-cli auth login --browser chrome`; no manual token copy is needed.
+After an account is migrated to the newer `flow.google.com` host, this project supports text-to-image plus text, material-reference, first-frame, and first/last-frame video in an existing Flow project. It reuses the local browser login saved by `flow-cli auth login --browser chrome`; no manual token copy is needed.
 
-For a migrated account, start with `flow-cli auth status`, `flow-cli project show`, and a fixed existing project. Image-to-image, multi-reference editing, `video i2v`, `video r2v`, and `video extend` are not guaranteed on the current Flow host and depend on what the account currently supports.
+For a migrated account, start with `flow-cli auth status`, `flow-cli project show`, and a fixed existing project. Material references always use `video r2v` and Flow's Materials mode, whether there is one image or several. Use `--ref` for local images and `--project-ref` with an exact material title for assets already in the project; both sources may be combined. Use `video i2v` and Frames mode only when the user explicitly requests a first frame or first/last frames. `video extend` still depends on account availability.
 
 ## Use from an agent chat
 
@@ -103,7 +103,8 @@ Paste a request like this into a new agent window:
 Use the local flow-cli and its saved Flow login.
 First run flow-cli auth status and flow-cli project show.
 Reuse the fixed Flow project and do not create a new project.
-Generate exactly one result. If the user did not specify a video duration, explicitly pass `--duration 4` when the current account/model supports the duration control. If the user specified a duration, pass that value unchanged. If `--duration` is omitted, Flow chooses its current default.
+Use `video r2v` for one or more material references. Choose local `--ref`, existing-project `--project-ref`, or both based on the available inputs. Use `video i2v` only for an explicitly requested first frame or first/last frames.
+Pass the requested model, aspect, resolution, duration, and count. Duration and resolution default to 4 seconds and 720p. Read every setting back before submission and stop on any mismatch; never switch routes automatically.
 Verify that the saved file opens, then return its absolute path.
 
 Request:
@@ -118,7 +119,7 @@ After installing this tool, paste the following prompt into an agent window to c
 Create a Skill named flow-media for the locally installed flow-cli, and install it in a Skill directory discoverable by the current agent.
 Trigger it when I ask to generate images with Gemini/Flow, videos with Veo/Flow, or image-to-video content.
 Before generation, run flow-cli auth status and flow-cli project show. Reuse the fixed project and do not create a new project.
-Generate one result by default. If the user did not specify a video duration, explicitly pass `--duration 4` when the current account/model supports the duration control. If the user specified a duration, pass that value unchanged. If `--duration` is omitted, Flow chooses its current default. Verify that the output file opens and return its absolute path.
+Use `video r2v` and Materials mode for one or more material references. Use local `--ref`, fixed-project `--project-ref "exact title"`, or both based on the available inputs. Use `video i2v` and Frames mode only for an explicitly requested first frame or first/last frames. Require an explicit model; pass the requested aspect, resolution, duration, and count. Duration and resolution default to 4 seconds and 720p. Read every setting back before submission, stop on any mismatch, and never switch routes automatically. Verify that the output file opens and return its absolute path.
 Validate the Skill, and never store tokens, cookies, or login data in it.
 ```
 
@@ -150,20 +151,26 @@ Image aspects: `9:16`, `16:9`, `1:1`, `4:3`, and `3:4`. The default count is one
 
 ## Video generation
 
-These examples generate one video and explicitly request 4 seconds. This is the Agent convention when the user does not specify a duration; it is not a forced wrapper default. Pass the user's requested duration unchanged. If `--duration` is omitted, Flow chooses its current default, and an account/model without a duration control may reject the command before submission:
+These examples generate one video and explicitly request 4 seconds and 720p. User parameters are applied unchanged; when the current account/model does not expose an option, the command refuses before submission:
 
 ```bash
 # Text-to-video
-flow-cli video t2v "slow push through a misty bamboo forest at dawn" --model omni-flash --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
+flow-cli video t2v "slow push through a misty bamboo forest at dawn" --model omni-flash --resolution 720p --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
 
-# Animate a generated image
-flow-cli video i2v output\street.png "rain falls slowly as the camera moves forward" --model veo-lite --duration 4 --count 1 --aspect 16:9 -o output\street.mp4
+# Explicit first frame
+flow-cli video i2v output\street.png "rain falls slowly as the camera moves forward" --model veo-lite --resolution 720p --duration 4 --count 1 --aspect 16:9 -o output\street.mp4
 
 # First/last-frame transition
-flow-cli video i2v --initial-frame first.png --end-frame last.png "smooth cinematic transition" --model veo-fast --duration 4 --count 1 -o output\transition.mp4
+flow-cli video i2v --initial-frame first.png --end-frame last.png "smooth cinematic transition" --model veo-fast --resolution 720p --duration 4 --count 1 -o output\transition.mp4
 
-# Reference-to-video
-flow-cli video r2v "the two characters meet in the rain" --ref person-a.png --ref person-b.png --model omni-flash --duration 4 --count 1 -o output\meeting.mp4
+# Local material references (one or many always use r2v / Materials)
+flow-cli video r2v "the two characters meet in the rain" --ref person-a.png --ref person-b.png --model omni-flash --resolution 720p --duration 4 --count 1 -o output\meeting.mp4
+
+# Reuse an existing material from the fixed project by its exact card title
+flow-cli video r2v "slowly move across the existing scene" --project-ref "First landscape scene" --model veo-fast --resolution 360p --duration 8 --count 1 --aspect 16:9 -o output\scene.mp4
+
+# Local and existing-project materials may be combined
+flow-cli video r2v "the character enters the existing scene" --ref person.png --project-ref "First landscape scene" --model omni-flash --resolution 720p --duration 6 --count 2 --aspect 9:16 -o output\mixed.mp4
 
 # Continue an existing clip (pass the project explicitly, or use the saved fixed project)
 flow-cli video extend <media-id> "the wave recedes" --project <Flow project ID> --aspect 16:9 -o output\continued.mp4
@@ -177,11 +184,15 @@ Video aliases:
 - `veo-quality`: Veo 3.1 Quality; quality-oriented; no reference-to-video support
 - `veo-lite-lp`: lower-priority Veo 3.1 Lite alias; availability may vary by account, region, and the current Flow UI
 
-Veo 3.1 models accept 4 / 6 / 8 seconds. Only `omni-flash` accepts 10 seconds. If `--duration` is omitted, Flow chooses its current default; the wrapper does not guarantee 4 seconds. A `--count` greater than one increases credit usage.
+Veo 3.1 models accept 4 / 6 / 8 seconds. Only `omni-flash` accepts 10 seconds. Omitted `--duration` and `--resolution` values deterministically use 4 seconds and 720p, and both are selected and read back rather than inherited from Flow state. A `--count` greater than one increases credit usage.
+
+Reference materials keep their original aspect ratio. Local files are uploaded unchanged, while existing project materials are selected directly from the current project's Materials picker by exact title and are not uploaded again. A missing or duplicate title stops before submission. Choosing a 9:16 or 16:9 output does not pre-crop source materials; source and output aspects are independent.
+
+Video saving follows the detail view's original-file export action rather than the player's lower-bitrate preview URL. If original export fails, the command stops instead of silently falling back to the preview rendition.
 
 `video extend` continues an existing clip as an 8-second segment and requires the project that owns the media ID. The wrapper adds the saved fixed project when one is configured; the example passes it explicitly for clarity. Its output is a Flow Scene rendered to the requested mp4 path. It may still be unavailable on an account migrated to the new Flow host.
 
-The Flow website may expose video resolution, editing, or upscale options that this CLI does not yet expose. The current CLI does not provide video 360p selection, video editing, or 1080p/4K video upscaling controls.
+`--resolution` supports 360p and 720p. Video editing and 1080p/4K video upscaling remain out of scope.
 
 ## Original Session Token image workflow
 
