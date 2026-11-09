@@ -9,10 +9,14 @@ gflow-cli 0.96.1 在 agent-only 编辑器上读取"扣费确认框"时，假设�
 另外，gflow-cli 0.96.1 在 agent-only 编辑器上拒绝 Omni 1.2 Flash（注明"尚未实测"），
 但菜单匹配已内置。2026-11-09 本机实测 `omni-1.2-flash --duration 3` 可正常生成 3 秒视频，
 所以只放开这一条拒绝，其余限制照旧。上游修复后可删除本模块。
+
+隐私：gflow-cli 0.95+ 内置"匿名使用统计"（本地计数 + 每周上传）。本项目一律关闭：
+设置 DO_NOT_TRACK / GFLOW_CLI_TELEMETRY，并把记录、告知、上传函数换成空操作。
 """
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Any, Callable
 
@@ -50,7 +54,33 @@ def make_unported_video(original: Callable[[Any], str | None]) -> Callable[[Any]
     return unported_video
 
 
+def disable_telemetry() -> bool:
+    """彻底关闭 gflow-cli 的使用统计：不记录、不提示、不上传。"""
+    os.environ["DO_NOT_TRACK"] = "1"
+    os.environ["GFLOW_CLI_TELEMETRY"] = "0"
+    try:
+        from gflow_cli import telemetry, telemetry_upload
+    except ImportError:
+        return False
+
+    def noop(*_args: Any, **_kwargs: Any) -> None:
+        return None
+
+    for name in ("record", "record_counter", "record_crash"):
+        if hasattr(telemetry, name):
+            setattr(telemetry, name, noop)
+    if hasattr(telemetry, "maybe_show_notice"):
+        telemetry.maybe_show_notice = lambda *_a, **_k: False
+    if hasattr(telemetry, "uploads_enabled"):
+        telemetry.uploads_enabled = lambda *_a, **_k: False
+    for name in ("maybe_upload", "send", "_spawn_sender"):
+        if hasattr(telemetry_upload, name):
+            setattr(telemetry_upload, name, noop)
+    return True
+
+
 def apply_patch() -> bool:
+    disable_telemetry()
     try:
         from gflow_cli.api.transports import agent_only_composer
     except ImportError:

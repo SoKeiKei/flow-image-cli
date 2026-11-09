@@ -61,5 +61,33 @@ class GateQuotesMoreTests(unittest.TestCase):
         self.assertEqual(unported(many), "more than one video per request")
 
 
+class TelemetryDisabledTests(unittest.TestCase):
+    def test_telemetry_is_neutralised(self):
+        import os
+        from unittest.mock import patch
+
+        from gflow_cli import telemetry, telemetry_upload
+
+        from flow_cli.gflow_runner import disable_telemetry
+
+        saved = {
+            (telemetry, n): getattr(telemetry, n)
+            for n in ("record", "record_counter", "record_crash", "maybe_show_notice", "uploads_enabled")
+        }
+        saved.update({(telemetry_upload, n): getattr(telemetry_upload, n) for n in ("maybe_upload", "send", "_spawn_sender")})
+        try:
+            with patch.dict(os.environ, {}, clear=False):
+                self.assertTrue(disable_telemetry())
+                self.assertEqual(os.environ["DO_NOT_TRACK"], "1")
+                self.assertEqual(os.environ["GFLOW_CLI_TELEMETRY"], "0")
+            self.assertIsNone(telemetry.record("cli", "x", [], "ok", 0.1))
+            self.assertFalse(telemetry.uploads_enabled())
+            self.assertFalse(telemetry.maybe_show_notice())
+            self.assertIsNone(telemetry_upload.send("2026-W45"))
+        finally:
+            for (module, name), value in saved.items():
+                setattr(module, name, value)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -161,6 +161,8 @@ def ensure_fixed_project(command: str, arguments: Sequence[str]) -> str | None:
         return None
     environment = os.environ.copy()
     environment.setdefault("PYTHONUTF8", "1")
+    environment["DO_NOT_TRACK"] = "1"
+    environment["GFLOW_CLI_TELEMETRY"] = "0"
     print(f"首次生成：正在创建固定项目「{DEFAULT_PROJECT_TITLE}」，之后素材都会放在里面…")
     try:
         process = subprocess.run(
@@ -218,6 +220,8 @@ def run_gflow(
 
     environment = os.environ.copy()
     environment.setdefault("PYTHONUTF8", "1")
+    environment["DO_NOT_TRACK"] = "1"  # 不收集、不上传任何使用统计
+    environment["GFLOW_CLI_TELEMETRY"] = "0"
     environment.setdefault("GFLOW_CLI_OUTPUT_DIR", str(Path.cwd() / "output"))
 
     process = subprocess.run(
