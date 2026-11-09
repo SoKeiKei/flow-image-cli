@@ -17,6 +17,11 @@ A local CLI for generating Google Flow images and videos directly from a termina
 
 Version 1.5.0 depends on gflow-cli 0.96.1 and adds the new Omni 1.2 Flash video model (`omni-1.2-flash`, 3-15 seconds). Image-to-video from a local image works on the migrated `flow.google.com` host.
 
+New in 1.5.0:
+
+- **Automatic fixed project.** The first image or video generation creates a project named "Flow CLI 素材", saves it, and every later generation reuses it, so Flow does not fill up with one project per task. Use `flow-cli project use <id>` to switch to another project. If creation fails, generation still runs and the next run retries.
+- **Chinese Flow UI fix.** gflow-cli 0.96.1 misreads the Chinese credit confirmation ("要消耗 7 个点数，开始生成这 1 个视频吗？") as 7 videos and refuses to approve it. `flow-cli` patches that check at launch (`flow_cli/gflow_runner.py`), so no account language change is needed. The same patch lets `omni-1.2-flash` text-to-video run on the agent-only composer, which gflow-cli 0.96.1 still marks as unmeasured; it was verified on one account (a 3-second clip came out at exactly 3 seconds), but that composer does not report which model rendered the clip.
+
 > This is an unofficial tool that drives Google Flow web capabilities. Model availability, credits, and page behavior may vary by account, region, and future Flow updates. Generation consumes your Flow credits.
 
 ## Why this project

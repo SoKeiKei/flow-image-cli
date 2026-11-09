@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from flow_cli.gflow_bridge import (
     check_gflow_compatibility,
@@ -93,7 +93,7 @@ class GflowBridgeTests(unittest.TestCase):
 
         self.assertEqual(result, 7)
         command = run.call_args.args[0]
-        self.assertEqual(command[1:4], ["-m", "gflow_cli", "video"])
+        self.assertEqual(command[1:4], ["-m", "flow_cli.gflow_runner", "video"])
         self.assertEqual(command[4:], ["t2v", "一只猫", "--model", "omni-flash"])
         environment = run.call_args.kwargs["env"]
         self.assertEqual(environment["PYTHONUTF8"], os.environ.get("PYTHONUTF8", "1"))
@@ -119,7 +119,7 @@ class GflowBridgeTests(unittest.TestCase):
         result = run_gflow("models", [], show_help_when_empty=False)
 
         self.assertEqual(result, 0)
-        self.assertEqual(run.call_args.args[0][-3:], ["-m", "gflow_cli", "models"])
+        self.assertEqual(run.call_args.args[0][-3:], ["-m", "flow_cli.gflow_runner", "models"])
 
     @patch("flow_cli.gflow_bridge.subprocess.run")
     @patch("flow_cli.gflow_bridge.importlib.util.find_spec", return_value=object())
@@ -193,6 +193,56 @@ class GflowBridgeTests(unittest.TestCase):
         set_fixed_project(project_id)
         self.assertEqual(get_fixed_project(), project_id)
         self.assertTrue(clear_fixed_project())
+        self.assertIsNone(get_fixed_project())
+
+    @patch("flow_cli.gflow_bridge.subprocess.run")
+    @patch("flow_cli.gflow_bridge.importlib.util.find_spec", return_value=object())
+    def test_first_generation_creates_and_saves_fixed_project(self, _find_spec, run):
+        project_id = "123e4567-e89b-42d3-a456-426614174000"
+        create = MagicMock(returncode=0, stdout=f'{{"project_id": "{project_id}"}}', stderr="")
+        generate = MagicMock(returncode=0)
+        run.side_effect = [create, generate]
+
+        with redirect_stdout(io.StringIO()):
+            run_gflow("video", ["t2v", "一只猫"])
+
+        self.assertEqual(get_fixed_project(), project_id)
+        self.assertIn("create", run.call_args_list[0].args[0])
+        self.assertEqual(run.call_args_list[1].args[0][-2:], ["--project", project_id])
+
+    @patch("flow_cli.gflow_bridge.subprocess.run")
+    @patch("flow_cli.gflow_bridge.importlib.util.find_spec", return_value=object())
+    def test_second_generation_reuses_project_without_creating(self, _find_spec, run):
+        project_id = "123e4567-e89b-42d3-a456-426614174000"
+        set_fixed_project(project_id)
+        run.return_value.returncode = 0
+
+        run_gflow("video", ["t2v", "一只猫"])
+
+        self.assertEqual(run.call_count, 1)
+
+    @patch("flow_cli.gflow_bridge.subprocess.run")
+    @patch("flow_cli.gflow_bridge.importlib.util.find_spec", return_value=object())
+    def test_project_creation_failure_does_not_block_generation(self, _find_spec, run):
+        create = MagicMock(returncode=1, stdout="", stderr="boom")
+        generate = MagicMock(returncode=0)
+        run.side_effect = [create, generate]
+
+        with redirect_stdout(io.StringIO()):
+            result = run_gflow("video", ["t2v", "一只猫"])
+
+        self.assertEqual(result, 0)
+        self.assertIsNone(get_fixed_project())
+        self.assertNotIn("--project", run.call_args_list[1].args[0])
+
+    @patch("flow_cli.gflow_bridge.subprocess.run")
+    @patch("flow_cli.gflow_bridge.importlib.util.find_spec", return_value=object())
+    def test_explicit_project_skips_auto_creation(self, _find_spec, run):
+        run.return_value.returncode = 0
+
+        run_gflow("video", ["t2v", "一只猫", "--project", "custom"])
+
+        self.assertEqual(run.call_count, 1)
         self.assertIsNone(get_fixed_project())
 
 

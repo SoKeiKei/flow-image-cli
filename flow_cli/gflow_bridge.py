@@ -135,6 +135,65 @@ def _with_fixed_project(command: str, arguments: Sequence[str]) -> list[str]:
     return forwarded
 
 
+DEFAULT_PROJECT_TITLE = "Flow CLI 素材"
+_PROJECT_ID_SEARCH = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+
+
+def _needs_project(command: str, arguments: Sequence[str]) -> bool:
+    forwarded = list(arguments)
+    if not forwarded or forwarded[0] not in _GENERATION_COMMANDS.get(command, set()):
+        return False
+    return not (
+        "--project" in forwarded
+        or any(arg.startswith("--project=") for arg in forwarded)
+    )
+
+
+def ensure_fixed_project(command: str, arguments: Sequence[str]) -> str | None:
+    """首次生成时自动创建并记录固定项目，之后所有素材都放进同一个项目。
+
+    已有固定项目、或用户显式传了 --project 时不做任何事。创建失败只提示，
+    不中断生成（gflow 会为这次任务自己建一个项目，下次再重试）。
+    """
+    if not _needs_project(command, arguments) or get_fixed_project():
+        return None
+    environment = os.environ.copy()
+    environment.setdefault("PYTHONUTF8", "1")
+    print(f"首次生成：正在创建固定项目「{DEFAULT_PROJECT_TITLE}」，之后素材都会放在里面…")
+    try:
+        process = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "flow_cli.gflow_runner",
+                "project",
+                "create",
+                "--title",
+                DEFAULT_PROJECT_TITLE,
+                "--json",
+            ],
+            env=environment,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=300,
+            check=False,
+        )
+        found = _PROJECT_ID_SEARCH.search(process.stdout or "")
+        if process.returncode != 0 or not found:
+            raise RuntimeError((process.stderr or "").strip()[-200:] or "未返回项目 ID")
+        project_id = found.group(0)
+        set_fixed_project(project_id)
+    except Exception as error:  # noqa: BLE001 - 创建失败不应阻断生成
+        print(f"提示: 自动创建固定项目失败（{error}），本次将由 Flow 自动建项目；"
+              "可稍后运行 flow-cli project use <项目ID> 手动固定。")
+        return None
+    print(f"已固定项目: {project_id}（flow-cli project show 可查看）")
+    return project_id
+
+
 def run_gflow(
     command: str,
     arguments: Sequence[str],
@@ -147,6 +206,7 @@ def run_gflow(
         print(error)
         return 2
 
+    ensure_fixed_project(command, arguments)
     forwarded_arguments = _with_fixed_project(command, arguments)
     if not forwarded_arguments and show_help_when_empty:
         forwarded_arguments.append("--help")
@@ -161,7 +221,7 @@ def run_gflow(
     environment.setdefault("GFLOW_CLI_OUTPUT_DIR", str(Path.cwd() / "output"))
 
     process = subprocess.run(
-        [sys.executable, "-m", "gflow_cli", command, *forwarded_arguments],
+        [sys.executable, "-m", "flow_cli.gflow_runner", command, *forwarded_arguments],
         env=environment,
         check=False,
     )
