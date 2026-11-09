@@ -41,7 +41,7 @@ def main():
   # 图片生成
   flow-cli image t2i "电影感的雨夜街道" --model nano2 -o street.png
 
-  # flow.google.com 上只有 omni-flash 接受 --duration；Veo 省略时长（默认 8 秒）
+  # flow.google.com 上只有 Omni 模型（omni-flash、omni-1.2-flash）接受 --duration；Veo 省略时长（默认 8 秒）
   flow-cli video t2v "薄雾中的竹林" --model omni-flash --duration 4 -o bamboo.mp4
 
   # 文生图
@@ -114,7 +114,7 @@ def main():
 
     subparsers.add_parser(
         "video",
-        help="生成 Flow 视频（Omni 1.1 Flash / Veo 3.1；具体能力由 gflow-cli 提供）",
+        help="生成 Flow 视频（Omni 1.1 / 1.2 Flash、Veo 3.1；具体能力由 gflow-cli 提供）",
     )
 
     subparsers.add_parser("media-models", help="列出最新图片与视频模型")

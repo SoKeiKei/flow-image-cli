@@ -9,13 +9,13 @@ English README: [README.md](./README.md)
 - 新版 Flow 网址 `flow.google.com` 上的文生图，以及本地图片的图生视频
 - Nano Banana 2 Lite、Nano Banana 2.1、Nano Banana Pro
 - 文生视频、图生视频、首尾帧视频和参考图视频（以当前 Flow 网址实际支持为准）
-- Omni 1.1 Flash（命令别名 `omni-flash`）与 Veo 3.1 Lite / Fast / Quality
+- Omni 1.1 Flash（`omni-flash`）、Omni 1.2 Flash（`omni-1.2-flash`）与 Veo 3.1 Lite / Fast / Quality
 - 固定复用同一个 Flow 项目，避免每次生成都新建项目
 - 真实 Chrome 登录，并保留原有 Session Token 生图方式
 - Chrome Token 插件默认连接本机服务并自动检查在线状态
 - 图片 2K / 4K 放大，失败时保底保存原图
 
-v1.4.0 依赖 gflow-cli 0.85。在迁移后的 `flow.google.com` 上，本地图片的图生视频从这一版起可用。
+v1.5.0 依赖 gflow-cli 0.96.1，新增 Flow 最新的 Omni 1.2 Flash 视频模型（`omni-1.2-flash`，3-15 秒）。在迁移后的 `flow.google.com` 上，本地图片的图生视频可用。
 
 > 本项目是非官方工具，会调用 Google Flow 网页能力。模型、额度和页面行为可能随账号、地区或 Flow 更新而变化。生成会消耗你的 Flow 额度。
 
@@ -26,7 +26,7 @@ v1.4.0 依赖 gflow-cli 0.85。在迁移后的 `flow.google.com` 上，本地图
 - 安装后直接使用 `flow-cli`，Agent 不需要理解多套服务和接口
 - 把登录、图片和视频统一到同一个命令入口
 - 可以固定复用一个 Flow 项目，连续对话生成时不会把项目列表弄乱
-- 默认只生成一个结果。在 `flow.google.com` 上，`--duration` 只对 `omni-flash` 有效；Veo 省略时长，由 Flow 使用默认 8 秒
+- 默认只生成一个结果。在 `flow.google.com` 上，`--duration` 只对 Omni 模型（`omni-flash`、`omni-1.2-flash`）有效；Veo 省略时长，由 Flow 使用默认 8 秒
 - 保留本机 Token 服务和 Chrome 插件，兼容原有图片生成方式
 
 目标是在 Agent 窗口里说一句，就直接生成并返回文件。
@@ -97,7 +97,7 @@ flow-cli project clear
 
 Google 正在把 Flow 从 `https://labs.google/fx/tools/flow` 迁到 `https://flow.google.com`。
 
-gflow-cli 0.67 在新网址上只能做文生视频。图生视频会在提交前失败，错误是 `FlowHostMigratedError`，退出码 36。这个缺口在 gflow-cli 0.85+ 修好了。本版本要求 `gflow-cli>=0.85.0,<0.86.0`，因此本地图片的图生视频可以在 `flow.google.com` 上运行。
+gflow-cli 0.67 在新网址上只能做文生视频。图生视频会在提交前失败，错误是 `FlowHostMigratedError`，退出码 36。这个缺口在 gflow-cli 0.85+ 修好了。本版本要求 `gflow-cli>=0.96.1,<0.97.0`，因此本地图片的图生视频可以在 `flow.google.com` 上运行。
 
 迁移账号应先运行 `flow-cli auth status` 和 `flow-cli project show`，并使用一个已经存在的项目。新版文生图会直接复用 `flow-cli auth login --browser chrome` 保存的本机登录状态，不需要手工复制 Token。
 
@@ -109,7 +109,7 @@ gflow-cli 0.67 在新网址上只能做文生视频。图生视频会在提交�
 请使用本机 flow-cli 和已经保存的 Flow 登录状态生成内容。
 先运行 flow-cli auth status 和 flow-cli project show。
 必须复用固定 Flow 项目，不要新建项目。
-只生成一个结果。在 flow.google.com 上，只有 omni-flash 可以传 --duration；Veo 不要传 --duration，默认 8 秒。给 Veo 传 --duration 会在提交前以 ConfigurationError 退出，退出码 11。
+只生成一个结果。在 flow.google.com 上，只有 Omni 模型（omni-flash、omni-1.2-flash）可以传 --duration；Veo 不要传 --duration，默认 8 秒。给 Veo 传 --duration 会在提交前以 ConfigurationError 退出，退出码 11。
 生成后确认文件可以打开，并把绝对路径发给我。
 
 具体要求：
@@ -126,7 +126,7 @@ gflow-cli 0.67 在新网址上只能做文生视频。图生视频会在提交�
 请把本机已经安装的 flow-cli 制作成一个名为 flow-media 的 Skill，并安装到当前 Agent 能发现的 Skill 目录。
 当我说“用 Gemini/Flow 生图”“用 Veo/Flow 生视频”或“图生视频”时自动使用它。
 每次生成前先检查 flow-cli auth status 和 flow-cli project show，必须复用固定项目，不要新建项目。
-默认只生成一个结果。在 flow.google.com 上，只有 omni-flash 可以传 --duration；Veo 不要传 --duration，默认 8 秒。给 Veo 传 --duration 会在提交前以 ConfigurationError 退出，退出码 11。生成后检查文件可以正常打开，并返回绝对路径。
+默认只生成一个结果。在 flow.google.com 上，只有 Omni 模型（omni-flash、omni-1.2-flash）可以传 --duration；Veo 不要传 --duration，默认 8 秒。给 Veo 传 --duration 会在提交前以 ConfigurationError 退出，退出码 11。生成后检查文件可以正常打开，并返回绝对路径。
 请完成 Skill 校验，不要把 Token、Cookie 或登录资料写入 Skill。
 ```
 
@@ -158,19 +158,22 @@ flow-cli image i2i "保持人物一致，改成冬季雪景" --ref person.jpg --
 
 ## 视频生成
 
-在 `flow.google.com` 上，`--duration` 只对 `omni-flash` 有效。Veo（`veo-lite`、`veo-fast`、`veo-quality`）请省略 `--duration`，Flow 默认 8 秒。给 Veo 传入 `--duration` 会在提交前拒绝，错误是 `ConfigurationError`，退出码 11，不会真正提交生成。
+在 `flow.google.com` 上，`--duration` 只对 Omni 模型（`omni-flash`、`omni-1.2-flash`）有效。Veo（`veo-lite`、`veo-fast`、`veo-quality`）请省略 `--duration`，Flow 默认 8 秒。给 Veo 传入 `--duration` 会在提交前拒绝，错误是 `ConfigurationError`，退出码 11，不会真正提交生成。
 
 ```bash
 # 图生视频（flow.google.com，Veo 不传时长）
 flow-cli video i2v -i selfie.png --aspect 9:16 --model veo-fast --project <id> -o out.mp4 "<prompt>"
 
-# 文生视频（只有 omni-flash 可以指定时长）
+# 文生视频（只有 Omni 模型可以指定时长）
 flow-cli video t2v "镜头缓慢推进清晨薄雾中的竹林" --model omni-flash --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
+
+# Omni 1.2 Flash：3 到 15 秒内任意整数秒
+flow-cli video t2v "镜头缓慢推进清晨薄雾中的竹林" --model omni-1.2-flash --duration 12 --count 1 --aspect 16:9 -o output\bamboo12.mp4
 
 # 首尾帧过渡（Veo 省略 --duration）
 flow-cli video i2v --initial-frame first.png --end-frame last.png "平滑的电影感转场" --model veo-fast --count 1 -o output\transition.mp4
 
-# 多参考图视频（omni-flash 可以指定时长）
+# 多参考图视频（Omni 模型可以指定时长）
 flow-cli video r2v "两名角色在雨中相遇" --ref person-a.png --ref person-b.png --model omni-flash --duration 4 --count 1 -o output\meeting.mp4
 
 # 续接已有视频（可显式提供项目，也可使用已保存的固定项目）
@@ -180,12 +183,13 @@ flow-cli video extend <media-id> "海浪退去" --project <id> --aspect 16:9 -o 
 视频模型：
 
 - `omni-flash`：Omni 1.1 Flash，最多 7 张参考图；在 `flow.google.com` 上可以传 `--duration`
+- `omni-1.2-flash`（别名 `omni-1.2`）：Omni 1.2 Flash，gflow-cli 0.96 新增；最多 7 张参考图；`--duration` 可选 3-15 秒
 - `veo-lite`：Veo 3.1 Lite，成本优先，最多 3 张参考图
 - `veo-fast`：Veo 3.1 Fast，速度优先，最多 3 张参考图
 - `veo-quality`：Veo 3.1 Quality，质量优先，不支持参考图视频
 - `veo-lite-lp`：低优先级的 Veo 3.1 Lite 别名；是否可用可能随账号、地区和当前 Flow 页面变化
 
-Veo 在 `flow.google.com` 上省略 `--duration`，默认 8 秒。只有 `omni-flash` 接受时长参数，可选 4 / 6 / 8 / 10 秒。`--count` 大于 1 会增加额度消耗。
+Veo 在 `flow.google.com` 上省略 `--duration`，默认 8 秒。`omni-flash` 可选 4 / 6 / 8 / 10 秒；`omni-1.2-flash` 可选 3 到 15 秒内任意整数秒。超过 10 秒需要 Google AI 套餐，否则会在提交前被拒绝，不扣额度；带 `--end-frame`（尾帧）时 `omni-1.2-flash` 最长 10 秒，更长会在上传前被拒绝。`--count` 大于 1 会增加额度消耗。
 
 `video extend` 会把已有视频续接为一个 8 秒片段，并且必须使用拥有该媒体 ID 的项目。已经设置固定项目时，包装器会自动传入它。结果会作为 Flow 场景渲染到指定的 mp4 路径。迁移到新 Flow 网址的账号仍可能无法使用它。
 
@@ -281,7 +285,7 @@ py -m playwright install chromium
 
 ### Veo 一传时长就退出
 
-在 `flow.google.com` 上给 Veo 传 `--duration` 会在提交前失败：`ConfigurationError`，退出码 11。去掉 `--duration`，使用默认 8 秒。只有 `omni-flash` 接受这个参数。
+在 `flow.google.com` 上给 Veo 传 `--duration` 会在提交前失败：`ConfigurationError`，退出码 11。去掉 `--duration`，使用默认 8 秒。只有 Omni 模型（`omni-flash`、`omni-1.2-flash`）接受这个参数。
 
 ### 配置文件没有生效
 

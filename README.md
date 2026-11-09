@@ -9,13 +9,13 @@ A local CLI for generating Google Flow images and videos directly from a termina
 - Text-to-image on `flow.google.com`, plus image-to-video from a local image
 - Nano Banana 2 Lite, Nano Banana 2.1, and Nano Banana Pro
 - Text-to-video, image-to-video, first/last-frame video, and reference-to-video where the current Flow host supports them
-- Omni 1.1 Flash (`omni-flash`) and Veo 3.1 Lite / Fast / Quality
+- Omni 1.1 Flash (`omni-flash`), Omni 1.2 Flash (`omni-1.2-flash`), and Veo 3.1 Lite / Fast / Quality
 - Reuse one fixed Flow project instead of creating a project for every task
 - Real Chrome login, plus the original Session Token image workflow
 - Chrome token extension with a prefilled local server URL and health check
 - 2K / 4K image upscaling with original-image fallback
 
-Version 1.4.0 depends on gflow-cli 0.85. Image-to-video from a local image works on the migrated `flow.google.com` host starting with this release.
+Version 1.5.0 depends on gflow-cli 0.96.1 and adds the new Omni 1.2 Flash video model (`omni-1.2-flash`, 3-15 seconds). Image-to-video from a local image works on the migrated `flow.google.com` host.
 
 > This is an unofficial tool that drives Google Flow web capabilities. Model availability, credits, and page behavior may vary by account, region, and future Flow updates. Generation consumes your Flow credits.
 
@@ -26,7 +26,7 @@ This project focuses on everyday generation from a terminal or agent chat:
 - One `flow-cli` entry point that agents can call without coordinating multiple services
 - Login, image, and video commands under the same CLI
 - Fixed-project reuse for clean, continuous agent conversations
-- One result by default. On `flow.google.com`, `--duration` applies only to `omni-flash`; omit it for Veo and Flow uses the 8-second default
+- One result by default. On `flow.google.com`, `--duration` applies only to Omni models (`omni-flash`, `omni-1.2-flash`); omit it for Veo and Flow uses the 8-second default
 - A local token receiver and Chrome extension for compatibility with the original image workflow
 
 Its focus is the shortest path from an agent request to a verified local media file.
@@ -95,7 +95,7 @@ Clearing the setting does not delete the project in Flow. The setting is stored 
 
 Google is moving Flow from `https://labs.google/fx/tools/flow` to `https://flow.google.com`.
 
-gflow-cli 0.67 could only run text-to-video on the new site. Image-to-video failed before submit with `FlowHostMigratedError` (exit 36). That path is fixed in gflow-cli 0.85+. This release requires `gflow-cli>=0.85.0,<0.86.0`, so local image-to-video runs on `flow.google.com`.
+gflow-cli 0.67 could only run text-to-video on the new site. Image-to-video failed before submit with `FlowHostMigratedError` (exit 36). That path is fixed in gflow-cli 0.85+. This release requires `gflow-cli>=0.96.1,<0.97.0`, so local image-to-video runs on `flow.google.com`.
 
 For a migrated account, start with `flow-cli auth status`, `flow-cli project show`, and an existing project. The migrated image path reuses the local browser login saved by `flow-cli auth login --browser chrome`; no manual token copy is needed.
 
@@ -107,7 +107,7 @@ Paste a request like this into a new agent window:
 Use the local flow-cli and its saved Flow login.
 First run flow-cli auth status and flow-cli project show.
 Reuse the fixed Flow project and do not create a new project.
-Generate exactly one result. On flow.google.com, pass --duration only with omni-flash. Omit --duration for Veo; the default is 8 seconds. Passing --duration to Veo exits 11 with ConfigurationError before submit.
+Generate exactly one result. On flow.google.com, pass --duration only with an Omni model (omni-flash or omni-1.2-flash). Omit --duration for Veo; the default is 8 seconds. Passing --duration to Veo exits 11 with ConfigurationError before submit.
 Verify that the saved file opens, then return its absolute path.
 
 Request:
@@ -122,7 +122,7 @@ After installing this tool, paste the following prompt into an agent window to c
 Create a Skill named flow-media for the locally installed flow-cli, and install it in a Skill directory discoverable by the current agent.
 Trigger it when I ask to generate images with Gemini/Flow, videos with Veo/Flow, or image-to-video content.
 Before generation, run flow-cli auth status and flow-cli project show. Reuse the fixed project and do not create a new project.
-Generate one result by default. On flow.google.com, pass --duration only with omni-flash. Omit --duration for Veo; the default is 8 seconds. Passing --duration to Veo exits 11 with ConfigurationError before submit. Verify that the output file opens and return its absolute path.
+Generate one result by default. On flow.google.com, pass --duration only with an Omni model (omni-flash or omni-1.2-flash). Omit --duration for Veo; the default is 8 seconds. Passing --duration to Veo exits 11 with ConfigurationError before submit. Verify that the output file opens and return its absolute path.
 Validate the Skill, and never store tokens, cookies, or login data in it.
 ```
 
@@ -154,19 +154,22 @@ Image aspects: `9:16`, `16:9`, `1:1`, `4:3`, and `3:4`. The default count is one
 
 ## Video generation
 
-On `flow.google.com`, `--duration` works only with `omni-flash`. Omit it for Veo (`veo-lite`, `veo-fast`, `veo-quality`). Flow then uses the 8-second default. Passing `--duration` to Veo fails before submit with `ConfigurationError` (exit 11).
+On `flow.google.com`, `--duration` works only with Omni models (`omni-flash`, `omni-1.2-flash`). Omit it for Veo (`veo-lite`, `veo-fast`, `veo-quality`). Flow then uses the 8-second default. Passing `--duration` to Veo fails before submit with `ConfigurationError` (exit 11).
 
 ```bash
 # Image-to-video on flow.google.com (no duration for Veo)
 flow-cli video i2v -i selfie.png --aspect 9:16 --model veo-fast --project <id> -o out.mp4 "<prompt>"
 
-# Text-to-video (only omni-flash accepts a duration)
+# Text-to-video (only Omni models accept a duration)
 flow-cli video t2v "slow push through a misty bamboo forest at dawn" --model omni-flash --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
+
+# Omni 1.2 Flash: any whole second from 3 to 15
+flow-cli video t2v "slow push through a misty bamboo forest at dawn" --model omni-1.2-flash --duration 12 --count 1 --aspect 16:9 -o output\bamboo12.mp4
 
 # First/last-frame transition (omit --duration for Veo)
 flow-cli video i2v --initial-frame first.png --end-frame last.png "smooth cinematic transition" --model veo-fast --count 1 -o output\transition.mp4
 
-# Reference-to-video (omni-flash accepts a duration)
+# Reference-to-video (Omni models accept a duration)
 flow-cli video r2v "the two characters meet in the rain" --ref person-a.png --ref person-b.png --model omni-flash --duration 4 --count 1 -o output\meeting.mp4
 
 # Continue an existing clip (pass the project explicitly, or use the saved fixed project)
@@ -176,12 +179,13 @@ flow-cli video extend <media-id> "the wave recedes" --project <id> --aspect 16:9
 Video aliases:
 
 - `omni-flash`: Omni 1.1 Flash; up to 7 references; accepts `--duration` on `flow.google.com`
+- `omni-1.2-flash` (alias `omni-1.2`): Omni 1.2 Flash, new in gflow-cli 0.96; up to 7 references; `--duration` 3-15 seconds
 - `veo-lite`: Veo 3.1 Lite; cost-oriented; up to 3 references
 - `veo-fast`: Veo 3.1 Fast; speed-oriented; up to 3 references
 - `veo-quality`: Veo 3.1 Quality; quality-oriented; no reference-to-video support
 - `veo-lite-lp`: lower-priority Veo 3.1 Lite alias; availability may vary by account, region, and the current Flow UI
 
-On `flow.google.com`, omit `--duration` for Veo and keep the 8-second default. Only `omni-flash` accepts a duration: 4 / 6 / 8 / 10 seconds. A `--count` greater than one increases credit usage.
+On `flow.google.com`, omit `--duration` for Veo and keep the 8-second default. `omni-flash` accepts 4 / 6 / 8 / 10 seconds; `omni-1.2-flash` accepts any whole second from 3 to 15. Above 10 seconds needs a Google AI plan: otherwise the request is refused before submit and no credits are spent. With `--end-frame`, `omni-1.2-flash` is limited to 10 seconds (longer is refused before any upload). A `--count` greater than one increases credit usage.
 
 `video extend` continues an existing clip as an 8-second segment and requires the project that owns the media ID. The wrapper adds the saved fixed project when one is configured. Its output is a Flow Scene rendered to the requested mp4 path. It may still be unavailable on an account migrated to the new Flow host.
 
@@ -277,7 +281,7 @@ Run `flow-cli project show`. If no project is fixed, set one with `flow-cli proj
 
 ### Veo exits as soon as a duration is passed
 
-On `flow.google.com`, passing `--duration` to Veo fails before submit with `ConfigurationError` (exit 11). Omit `--duration` and keep the 8-second default. Only `omni-flash` accepts the flag.
+On `flow.google.com`, passing `--duration` to Veo fails before submit with `ConfigurationError` (exit 11). Omit `--duration` and keep the 8-second default. Only Omni models (`omni-flash`, `omni-1.2-flash`) accept the flag.
 
 Also check the output directory permissions and free disk space.
 

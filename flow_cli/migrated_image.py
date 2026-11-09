@@ -374,6 +374,7 @@ def print_current_models() -> int:
     print("  nano-pro    Nano Banana Pro")
     print("\n当前视频模型:")
     print("  omni-flash  Omni 1.1 Flash")
+    print("  omni-1.2-flash  Omni 1.2 Flash（3-15 秒）")
     print("  veo-lite    Veo 3.1 Lite")
     print("  veo-fast    Veo 3.1 Fast")
     print("  veo-quality Veo 3.1 Quality")
