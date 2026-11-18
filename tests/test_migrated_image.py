@@ -7,9 +7,11 @@ from PIL import Image
 
 from flow_cli.migrated_image import (
     MODEL_LABELS,
+    _follow_format,
     _image_format,
     _model_menu_matches,
     _save_image,
+    parse_i2i_request,
     parse_t2i_request,
 )
 
@@ -79,6 +81,46 @@ class MigratedImageTests(unittest.TestCase):
             with Image.open(saved) as image:
                 self.assertEqual(image.format, "PNG")
                 self.assertEqual(image.size, (8, 6))
+
+
+class UpscaleTests(unittest.TestCase):
+    def test_default_download_is_2k(self):
+        request = parse_t2i_request(["竹林", "--project", PROJECT_ID])
+        self.assertEqual(request.upscale, "2k")
+
+    def test_upscale_levels(self):
+        for level in ("1k", "2k", "4k"):
+            request = parse_t2i_request(["竹林", "-u", level, "--project", PROJECT_ID])
+            self.assertEqual(request.upscale, level)
+        legacy = parse_t2i_request(["竹林", "-u", "none", "--project", PROJECT_ID])
+        self.assertEqual(legacy.upscale, "1k")
+        with self.assertRaises(SystemExit):
+            parse_t2i_request(["竹林", "-u", "8k", "--project", PROJECT_ID])
+
+    def test_i2i_takes_several_refs_and_requires_them(self):
+        with tempfile.TemporaryDirectory() as folder:
+            a, b = Path(folder) / "a.png", Path(folder) / "b.png"
+            a.write_bytes(b"x")
+            b.write_bytes(b"x")
+            request = parse_i2i_request(
+                ["改成冬天", "--ref", str(a), "--ref", str(b), "--project", PROJECT_ID]
+            )
+            self.assertEqual(request.refs, (a, b))
+            with self.assertRaises(SystemExit):
+                parse_i2i_request(["改成冬天", "--project", PROJECT_ID])
+            with self.assertRaisesRegex(ValueError, "参考图片不存在"):
+                parse_i2i_request(
+                    ["x", "--ref", str(Path(folder) / "none.png"), "--project", PROJECT_ID]
+                )
+
+    def test_default_name_follows_real_format_but_explicit_output_is_kept(self):
+        source = io.BytesIO()
+        Image.new("RGB", (4, 4)).save(source, format="JPEG")
+        jpeg = source.getvalue()
+        auto = parse_t2i_request(["竹林", "--project", PROJECT_ID])
+        self.assertEqual(_follow_format(Path("a/x.png"), jpeg, auto), Path("a/x.jpg"))
+        fixed = parse_t2i_request(["竹林", "-o", "y.png", "--project", PROJECT_ID])
+        self.assertEqual(_follow_format(Path("y.png"), jpeg, fixed), Path("y.png"))
 
 
 if __name__ == "__main__":

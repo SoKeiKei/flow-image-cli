@@ -217,6 +217,10 @@ def run_gflow(
         from .migrated_image import run_migrated_t2i
 
         return run_migrated_t2i(forwarded_arguments[1:])
+    if command == "image" and forwarded_arguments[:1] == ["i2i"]:
+        from .migrated_image import run_migrated_i2i
+
+        return run_migrated_i2i(forwarded_arguments[1:])
 
     environment = os.environ.copy()
     environment.setdefault("PYTHONUTF8", "1")

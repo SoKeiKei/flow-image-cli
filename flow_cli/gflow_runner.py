@@ -1,14 +1,11 @@
 """以补丁方式启动 gflow-cli。
 
-gflow-cli 0.96.1 在 agent-only 编辑器上读取"扣费确认框"时，假设文案顺序是
-"……N 个视频……X 点数"（先数量后点数），只核对最后一个数字之前的数字。
-中文界面的文案相反："要消耗 7 个点数，开始生成这 1 个视频吗？"，点数 7 被误当成
-生成数量，导致正常请求被拒绝。这里只为中文确认框按"生成这 N 个"读取数量，
-其他文案仍走 gflow-cli 原逻辑。
-
-另外，gflow-cli 0.96.1 在 agent-only 编辑器上拒绝 Omni 1.2 Flash（注明"尚未实测"），
-但菜单匹配已内置。2026-11-09 本机实测 `omni-1.2-flash --duration 3` 可正常生成 3 秒视频，
-所以只放开这一条拒绝，其余限制照旧。上游修复后可删除本模块。
+1. 禁止使用「智能体」界面（2026-11-18 用户定）：所有生成都必须走 Flow 的完整编辑器
+   （有"帧/素材"、比例、模型、时长等单次设置的那个），不得向智能体对话框下指令。
+   gflow-cli 遇到只有对话框的 agent-only 界面时，原本会改用智能体做文生图/文生视频；
+   这里把"智能体界面能不能做"一律改成"不能"，于是 gflow 会先自动关掉智能体开关、
+   刷新重试，仍是智能体界面就直接报错（退出码 36），不会向智能体提交任何生成。
+   由于智能体路径整体禁用，原来针对它的两个补丁（中文扣费框误读、Omni 1.2 放行）已删除。
 
 隐私：gflow-cli 0.95+ 内置"匿名使用统计"（本地计数 + 每周上传）。本项目一律关闭：
 设置 DO_NOT_TRACK / GFLOW_CLI_TELEMETRY，并把记录、告知、上传函数换成空操作。
@@ -17,41 +14,33 @@ gflow-cli 0.96.1 在 agent-only 编辑器上读取"扣费确认框"时，假设�
 from __future__ import annotations
 
 import os
-import re
 from typing import Any, Callable
 
-_ZH_COUNT = re.compile(r"生成[^\d]*(\d+)\s*(?:个|张|条|段)")
-_CJK = re.compile(r"[一-鿿]")
+NO_AGENT_REASON = (
+    "智能体生成（flow-cli 已禁用智能体；请在 Flow 网页里把「智能体」开关关掉，"
+    "使用带「帧/素材」的完整编辑器）"
+)
 
 
-def make_gate_quotes_more(
-    original: Callable[[str, int], bool | None],
-) -> Callable[[str, int], bool | None]:
-    def gate_quotes_more(title: str, count: int) -> bool | None:
-        if _CJK.search(title):
-            match = _ZH_COUNT.search(title)
-            # 数量还没渲染出来时返回 None，让 gflow 继续等待，不能批准也不能误拒
-            return int(match.group(1)) > count if match else None
-        return original(title, count)
-
-    return gate_quotes_more
+def refuse_agent(*_args: Any, **_kwargs: Any) -> str:
+    """替换 gflow 的 unported_video / unported_image：智能体界面一律不能做。"""
+    return NO_AGENT_REASON
 
 
-def make_unported_video(original: Callable[[Any], str | None]) -> Callable[[Any], str | None]:
-    def unported_video(request: Any) -> str | None:
-        from gflow_cli.api.transports import agent_only_composer as composer
+def make_refuse_unported(original: Callable[[str], Any]) -> Callable[[str], Any]:
+    def refuse_unported(what: str) -> Any:
+        if what == NO_AGENT_REASON:
+            from gflow_cli.errors import FlowHostMigratedError
 
-        omni_1_2 = composer.VideoModel.OMNI_1_2_FLASH
-        if request.model is not omni_1_2:
-            return original(request)
-        # 临时按 Omni 1.1 做其余检查（模式、数量、比例等），只跳过 Omni 1.2 这一条
-        object.__setattr__(request, "model", composer.VideoModel.OMNI_FLASH)
-        try:
-            return original(request)
-        finally:
-            object.__setattr__(request, "model", omni_1_2)
+            return FlowHostMigratedError(
+                detail=(
+                    "Flow 现在给这个账号的是只有对话框的智能体界面，而 flow-cli 不使用智能体生成；"
+                    "请在 Flow 网页里关闭「智能体」开关后重试"
+                )
+            )
+        return original(what)
 
-    return unported_video
+    return refuse_unported
 
 
 def disable_telemetry() -> bool:
@@ -85,13 +74,13 @@ def apply_patch() -> bool:
         from gflow_cli.api.transports import agent_only_composer
     except ImportError:
         return False
-    current = getattr(agent_only_composer, "gate_quotes_more", None)
-    if current is None:
+    if not hasattr(agent_only_composer, "unported_video"):
         return False
-    agent_only_composer.gate_quotes_more = make_gate_quotes_more(current)
-    unported = getattr(agent_only_composer, "unported_video", None)
-    if unported is not None and hasattr(agent_only_composer, "VideoModel"):
-        agent_only_composer.unported_video = make_unported_video(unported)
+    agent_only_composer.unported_video = refuse_agent
+    agent_only_composer.unported_image = refuse_agent
+    agent_only_composer.refuse_unported = make_refuse_unported(
+        agent_only_composer.refuse_unported
+    )
     return True
 
 

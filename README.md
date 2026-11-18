@@ -11,17 +11,24 @@ A local CLI for generating Google Flow images and videos directly from a termina
 - Text-to-video, image-to-video, first/last-frame video, and reference-to-video where the current Flow host supports them
 - Omni 1.1 Flash (`omni-flash`), Omni 1.2 Flash (`omni-1.2-flash`), and Veo 3.1 Lite / Fast / Quality
 - Reuse one fixed Flow project instead of creating a project for every task
-- Real Chrome login, plus the original Session Token image workflow
-- Chrome token extension with a prefilled local server URL and health check
-- 2K / 4K image upscaling with original-image fallback
+- Real Chrome login (the only login method)
+- Images download at 2K by default (Flow upscale); 1K original optional; 4K needs a Flow plan upgrade and falls back to the 1K original
 
-Version 1.5.0 depends on gflow-cli 0.96.1 and adds the new Omni 1.2 Flash video model (`omni-1.2-flash`, 3-15 seconds). Image-to-video from a local image works on the migrated `flow.google.com` host.
+Version 1.6.0 depends on gflow-cli 0.96.1 and adds the new Omni 1.2 Flash video model (`omni-1.2-flash`, 3-15 seconds). Image-to-video from a local image works on the migrated `flow.google.com` host.
+
+New in 1.6.0:
+
+- **2K image download, menu only.** `image t2i` and `image i2i` download 2K by default (`-u 1k|2k|4k`) through the download menu at the top right of the image detail page. Grid thumbnails are never saved; if the chosen size is unavailable the menu's 1K is taken (4K needs a Flow plan upgrade).
+- **`image i2i` now runs in flow-cli itself** (`--ref` repeatable), so its images also come from the download menu.
+- **The Flow agent is never used.** Everything runs in Flow's full editor; the Agent switch is turned off automatically, and the dialog-only agent interface is refused (exit 36).
+- **Old Session Token login removed.** `flow-cli gen / login / credits / config`, the token server and the Chrome token extension are gone. Real Chrome login (`flow-cli auth login --browser chrome`) is the only way. The two patches that only served the agent composer (Chinese credit dialog, Omni 1.2 on the agent composer) were deleted with it.
+- **Image-to-video defaults to Ingredients mode** (`video r2v --ref`, several images); `video i2v` is for an explicit first/last frame.
 
 New in 1.5.0:
 
 - **Automatic fixed project.** The first image or video generation creates a project named "Flow CLI 素材", saves it, and every later generation reuses it, so Flow does not fill up with one project per task. Use `flow-cli project use <id>` to switch to another project. If creation fails, generation still runs and the next run retries.
 - **No usage telemetry.** gflow-cli 0.95+ ships anonymous usage counters and weekly uploads. `flow-cli` always turns them off (`DO_NOT_TRACK=1`, `GFLOW_CLI_TELEMETRY=0`, and its record/notice/upload functions are replaced with no-ops), so nothing is counted locally or sent. The package code itself is upstream and cannot be removed from the installed dependency.
-- **Chinese Flow UI fix.** gflow-cli 0.96.1 misreads the Chinese credit confirmation ("要消耗 7 个点数，开始生成这 1 个视频吗？") as 7 videos and refuses to approve it. `flow-cli` patches that check at launch (`flow_cli/gflow_runner.py`), so no account language change is needed. The same patch lets `omni-1.2-flash` text-to-video run on the agent-only composer, which gflow-cli 0.96.1 still marks as unmeasured; it was verified on one account (a 3-second clip came out at exactly 3 seconds), but that composer does not report which model rendered the clip.
+- **Chinese Flow UI fix** (removed in 1.6.0 together with the agent composer path).
 
 > This is an unofficial tool that drives Google Flow web capabilities. Model availability, credits, and page behavior may vary by account, region, and future Flow updates. Generation consumes your Flow credits.
 
@@ -33,7 +40,6 @@ This project focuses on everyday generation from a terminal or agent chat:
 - Login, image, and video commands under the same CLI
 - Fixed-project reuse for clean, continuous agent conversations
 - One result by default. On `flow.google.com`, `--duration` applies only to Omni models (`omni-flash`, `omni-1.2-flash`); omit it for Veo and Flow uses the 8-second default
-- A local token receiver and Chrome extension for compatibility with the original image workflow
 
 Its focus is the shortest path from an agent request to a verified local media file.
 
@@ -126,7 +132,7 @@ After installing this tool, paste the following prompt into an agent window to c
 
 ```text
 Create a Skill named flow-media for the locally installed flow-cli, and install it in a Skill directory discoverable by the current agent.
-Trigger it when I ask to generate images with Gemini/Flow, videos with Veo/Flow, or image-to-video content.
+Trigger it when I ask to generate images with Gemini/Flow, videos with Veo/Flow, or image-to-video content. Image-to-video defaults to `flow-cli video r2v --ref` (Ingredients mode, several images); use `video i2v` only when a first/last frame is explicitly wanted. Never use Flow's agent; images come only from the detail page's 1K/2K/4K download menu, never thumbnails.
 Before generation, run flow-cli auth status and flow-cli project show. Reuse the fixed project and do not create a new project.
 Generate one result by default. On flow.google.com, pass --duration only with an Omni model (omni-flash or omni-1.2-flash). Omit --duration for Veo; the default is 8 seconds. Passing --duration to Veo exits 11 with ConfigurationError before submit. Verify that the output file opens and return its absolute path.
 Validate the Skill, and never store tokens, cookies, or login data in it.
@@ -144,7 +150,7 @@ flow-cli image t2i "minimal product photography" --model nano-pro --aspect 1:1 -
 # Nano Banana 2 Lite (lowest cost)
 flow-cli image t2i "mountain valley at dawn" --model nano2-lite --aspect 16:9 -n 1 -o output\valley.png
 
-# Multi-reference image editing
+# Multi-reference image editing (--ref is repeatable; -u 1k/2k/4k also works)
 flow-cli image i2i "keep the person consistent and change the scene to winter" --ref person.jpg --ref clothes.jpg --model nano2 -n 1 -o output\winter.png
 ```
 
@@ -158,13 +164,25 @@ The migrated Flow page no longer offers Imagen 4, so `image4` / `imagen4` are no
 
 Image aspects: `9:16`, `16:9`, `1:1`, `4:3`, and `3:4`. The default count is one; `-n` accepts 1–4.
 
+The download size of `image t2i` is set by `-u/--upscale`:
+
+- `2k` (default): after generating, the image detail page is opened and Flow's "Download → 2K" is used. A 9:16 image measured 1536×2752; it adds about 15 seconds per image and is saved as JPEG.
+- `1k`: the 1K original size from the download menu (about 768×1376 for 9:16), fastest. The old spelling `none` still works and means `1k`.
+- `4k`: needs a Flow plan upgrade. When the account does not have it, the reason is printed and the menu's 1K original is taken instead.
+
+**Every image comes only from the download menu at the top right of the image detail page (1K / 2K / 4K); the thumbnails in the media grid are never saved.** When the chosen size is unavailable the menu's 1K is used, and if even that fails the command errors. Both `image t2i` and `image i2i` work this way.
+
+Without `-o`, the default file name follows the real image format (`.jpg`); `-o x.png` converts to PNG.
+
+**The agent is never used.** All image and video generation goes through Flow's full editor (the one with Frames / Ingredients, aspect, model and duration controls). If the Agent switch is on it is turned off automatically; if Flow still serves the dialog-only agent interface after reloading, the command fails (exit 36) and nothing is submitted to the agent. Turn the Agent switch off in the Flow web page if needed.
+
 ## Video generation
 
 On `flow.google.com`, `--duration` works only with Omni models (`omni-flash`, `omni-1.2-flash`). Omit it for Veo (`veo-lite`, `veo-fast`, `veo-quality`). Flow then uses the 8-second default. Passing `--duration` to Veo fails before submit with `ConfigurationError` (exit 11).
 
 ```bash
-# Image-to-video on flow.google.com (no duration for Veo)
-flow-cli video i2v -i selfie.png --aspect 9:16 --model veo-fast --project <id> -o out.mp4 "<prompt>"
+# Image-to-video: default to the "Ingredients" mode, r2v --ref (several images: up to 7 for Omni, 3 for Veo)
+flow-cli video r2v "<prompt>" --ref a.png --ref b.png --aspect 9:16 --model veo-fast -o out.mp4
 
 # Text-to-video (only Omni models accept a duration)
 flow-cli video t2v "slow push through a misty bamboo forest at dawn" --model omni-flash --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
@@ -172,7 +190,7 @@ flow-cli video t2v "slow push through a misty bamboo forest at dawn" --model omn
 # Omni 1.2 Flash: any whole second from 3 to 15
 flow-cli video t2v "slow push through a misty bamboo forest at dawn" --model omni-1.2-flash --duration 12 --count 1 --aspect 16:9 -o output\bamboo12.mp4
 
-# First/last-frame transition (omit --duration for Veo)
+# First/last-frame transition: use i2v only when a first AND last frame are wanted (just those two images; omit --duration for Veo)
 flow-cli video i2v --initial-frame first.png --end-frame last.png "smooth cinematic transition" --model veo-fast --count 1 -o output\transition.mp4
 
 # Reference-to-video (Omni models accept a duration)
@@ -196,74 +214,6 @@ On `flow.google.com`, omit `--duration` for Veo and keep the 8-second default. `
 `video extend` continues an existing clip as an 8-second segment and requires the project that owns the media ID. The wrapper adds the saved fixed project when one is configured. Its output is a Flow Scene rendered to the requested mp4 path. It may still be unavailable on an account migrated to the new Flow host.
 
 The Flow website may expose video resolution, editing, or upscale options that this CLI does not yet expose. The current CLI does not provide video 360p selection, video editing, or 1080p/4K video upscaling controls.
-
-## Original Session Token image workflow
-
-The original `flow-cli gen` command remains available:
-
-```bash
-flow-cli login --st "your-session-token"
-flow-cli models
-flow-cli credits
-flow-cli gen "a cinematic cat in neon city" -o output\cat.png
-flow-cli gen "convert to watercolor" -r input.jpg -u 2k -o output\watercolor.png
-```
-
-`-u` accepts `none`, `2k`, and `4k`. If upscale fails, the original image is saved instead.
-
-## Token extension
-
-The bundled `flow-token-updater` extension syncs the Chrome Flow Session Token to the original image workflow.
-
-Start the local receiver:
-
-```bash
-python flow_token_server.py
-```
-
-The default endpoint is `http://127.0.0.1:8765/token`; health checks use `http://127.0.0.1:8765/health`.
-
-To install the extension:
-
-1. Open `chrome://extensions/`.
-2. Enable Developer mode.
-3. Click **Load unpacked**.
-4. Select the repository's `flow-token-updater` directory.
-
-On first install, the extension saves the default endpoint and checks whether the service is online. Edit it only when using a custom address. Tokens are written to `~/.flow-cli/token.json`.
-
-## Configuration
-
-The original image workflow reads `~/.flow-cli/config.toml`:
-
-```toml
-[flow]
-labs_base_url = "https://labs.google/fx/api"
-api_base_url = "https://aisandbox-pa.googleapis.com/v1"
-timeout = 120
-max_retries = 3
-
-[output]
-output_dir = "output"
-
-[captcha]
-method = "personal"
-personal_headless = false
-personal_timeout = 90
-personal_settle_seconds = 2.0
-
-[debug]
-enabled = false
-```
-
-The `personal` captcha mode additionally requires:
-
-```bash
-py -m pip install playwright
-py -m playwright install chromium
-```
-
-The root `config.toml` is a template. Set `FLOW_CONFIG` to read another path.
 
 ## Troubleshooting
 
@@ -293,10 +243,8 @@ Also check the output directory permissions and free disk space.
 
 ## Security
 
-- Never commit or publish ST, AT, cookies, login profiles, or generation history.
-- Do not expose complete tokens in chat or screenshots.
-- Keep `~/.flow-cli/token.json` and browser login data on the local machine.
-- The extension keeps token history in Chrome local storage; clear it from the popup when no longer needed.
+- Never commit or publish cookies, login profiles, or generation history.
+- Keep browser login data on the local machine, and do not show it in chat or screenshots.
 
 ## License
 

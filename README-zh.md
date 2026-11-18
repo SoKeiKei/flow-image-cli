@@ -11,17 +11,24 @@ English README: [README.md](./README.md)
 - 文生视频、图生视频、首尾帧视频和参考图视频（以当前 Flow 网址实际支持为准）
 - Omni 1.1 Flash（`omni-flash`）、Omni 1.2 Flash（`omni-1.2-flash`）与 Veo 3.1 Lite / Fast / Quality
 - 固定复用同一个 Flow 项目，避免每次生成都新建项目
-- 真实 Chrome 登录，并保留原有 Session Token 生图方式
-- Chrome Token 插件默认连接本机服务并自动检查在线状态
-- 图片 2K / 4K 放大，失败时保底保存原图
+- 真实 Chrome 登录（唯一登录方式）
+- 图片默认下载 2K（Flow 高清重塑），可选 1K 原图；4K 需要 Flow 升级套餐，不可用时自动保存 1K 原图
 
-v1.5.0 依赖 gflow-cli 0.96.1，新增 Flow 最新的 Omni 1.2 Flash 视频模型（`omni-1.2-flash`，3-15 秒）。在迁移后的 `flow.google.com` 上，本地图片的图生视频可用。
+v1.6.0 依赖 gflow-cli 0.96.1，新增 Flow 最新的 Omni 1.2 Flash 视频模型（`omni-1.2-flash`，3-15 秒）。在迁移后的 `flow.google.com` 上，本地图片的图生视频可用。
+
+1.6.0 新增：
+
+- **图片 2K 下载，只走下载菜单。** `image t2i` 和 `image i2i` 默认下载 2K（`-u 1k|2k|4k`），一律通过图片详情页右上角的下载菜单取图，从不保存素材网格里的缩略图；所选尺寸取不到时退回菜单里的 1K（4K 需要 Flow 升级套餐）。
+- **`image i2i` 改由 flow-cli 自己实现**（`--ref` 可重复），图片同样只走下载菜单。
+- **不使用智能体。** 所有生成都走 Flow 的完整编辑器，智能体开关会自动关掉；刷新后仍是只有对话框的智能体界面就直接拒绝（退出码 36）。
+- **移除旧的 Session Token 登录。** `flow-cli gen / login / credits / config`、Token 服务和 Chrome Token 插件都已删除，只保留真实 Chrome 登录（`flow-cli auth login --browser chrome`）。仅服务于智能体界面的两个补丁（中文扣费框、Omni 1.2 放行）一并删除。
+- **图生视频默认用「素材」模式**（`video r2v --ref`，可多图）；`video i2v` 只在明确要首尾帧时使用。
 
 1.5.0 新增：
 
 - **自动固定项目。** 第一次生成图片或视频时，会自动创建名为「Flow CLI 素材」的项目并记录，之后所有生成都复用它，Flow 里不会一个任务一个项目。想换项目用 `flow-cli project use <id>`。创建失败时生成照常进行，下次再重试。
 - **不收集使用统计。** gflow-cli 0.95+ 自带匿名使用统计（本地计数加每周上传）。`flow-cli` 一律关闭（`DO_NOT_TRACK=1`、`GFLOW_CLI_TELEMETRY=0`，并把记录、提示、上传函数替换为空操作），本地不计数，也不会发送任何数据。统计代码属于上游依赖包，无法从已安装的包里物理删除。
-- **中文 Flow 界面修复。** gflow-cli 0.96.1 会把中文扣费确认框（「要消耗 7 个点数，开始生成这 1 个视频吗？」）里的 7 误读成 7 个视频并拒绝批准。`flow-cli` 在启动时给这处检查打了补丁（`flow_cli/gflow_runner.py`），不需要改账号语言。同一个补丁还放开了 `omni-1.2-flash` 文生视频在 agent-only 编辑器上的使用（gflow-cli 0.96.1 仍标注为未实测）；已在一个账号上实测通过（3 秒视频时长正好 3 秒），但该编辑器不会回报实际渲染用的模型。
+- **中文 Flow 界面修复**（1.6.0 随智能体界面路径一并删除）。
 
 > 本项目是非官方工具，会调用 Google Flow 网页能力。模型、额度和页面行为可能随账号、地区或 Flow 更新而变化。生成会消耗你的 Flow 额度。
 
@@ -33,7 +40,6 @@ v1.5.0 依赖 gflow-cli 0.96.1，新增 Flow 最新的 Omni 1.2 Flash 视频模�
 - 把登录、图片和视频统一到同一个命令入口
 - 可以固定复用一个 Flow 项目，连续对话生成时不会把项目列表弄乱
 - 默认只生成一个结果。在 `flow.google.com` 上，`--duration` 只对 Omni 模型（`omni-flash`、`omni-1.2-flash`）有效；Veo 省略时长，由 Flow 使用默认 8 秒
-- 保留本机 Token 服务和 Chrome 插件，兼容原有图片生成方式
 
 目标是在 Agent 窗口里说一句，就直接生成并返回文件。
 
@@ -130,7 +136,7 @@ gflow-cli 0.67 在新网址上只能做文生视频。图生视频会在提交�
 
 ```text
 请把本机已经安装的 flow-cli 制作成一个名为 flow-media 的 Skill，并安装到当前 Agent 能发现的 Skill 目录。
-当我说“用 Gemini/Flow 生图”“用 Veo/Flow 生视频”或“图生视频”时自动使用它。
+当我说“用 Gemini/Flow 生图”“用 Veo/Flow 生视频”或“图生视频”时自动使用它。图生视频默认用 `flow-cli video r2v --ref`（素材模式，可多图），只有明确要首尾帧时才用 `video i2v`。绝不使用 Flow 的智能体；图片只走详情页的 1K/2K/4K 下载菜单，不保存缩略图。
 每次生成前先检查 flow-cli auth status 和 flow-cli project show，必须复用固定项目，不要新建项目。
 默认只生成一个结果。在 flow.google.com 上，只有 Omni 模型（omni-flash、omni-1.2-flash）可以传 --duration；Veo 不要传 --duration，默认 8 秒。给 Veo 传 --duration 会在提交前以 ConfigurationError 退出，退出码 11。生成后检查文件可以正常打开，并返回绝对路径。
 请完成 Skill 校验，不要把 Token、Cookie 或登录资料写入 Skill。
@@ -148,7 +154,7 @@ flow-cli image t2i "极简产品摄影" --model nano-pro --aspect 1:1 -n 1 -o ou
 # Nano Banana 2 Lite 文生图（成本最低）
 flow-cli image t2i "清晨山谷风景" --model nano2-lite --aspect 16:9 -n 1 -o output\valley.png
 
-# 多参考图编辑
+# 多参考图编辑（--ref 可重复；同样支持 -u 1k/2k/4k）
 flow-cli image i2i "保持人物一致，改成冬季雪景" --ref person.jpg --ref clothes.jpg --model nano2 -n 1 -o output\winter.png
 ```
 
@@ -162,13 +168,25 @@ flow-cli image i2i "保持人物一致，改成冬季雪景" --ref person.jpg --
 
 图片画幅：`9:16`、`16:9`、`1:1`、`4:3`、`3:4`。默认只生成 1 张，`-n` 可设为 1–4。
 
+文生图的下载尺寸由 `-u/--upscale` 控制：
+
+- `2k`（默认）：生成后打开图片详情页，用 Flow 的"下载 → 2K 高清重塑"取图，竖版 9:16 实测 1536×2752，约多花 15 秒/张，保存为 JPEG
+- `1k`：下载菜单里的 1K 原始尺寸（9:16 约 768×1376），最快；旧写法 `none` 仍可用，等同 `1k`
+- `4k`：需要 Flow 升级套餐；账号没有开通时提示原因，并改取菜单里的 1K 原始尺寸
+
+**所有图片只走图片详情页右上角的下载菜单（1K / 2K / 4K），从不保存素材网格里的缩略图。** 所选尺寸取不到时退回菜单里的 1K，1K 也取不到就报错。`image t2i` 和 `image i2i` 都是这样。
+
+没有用 `-o` 指定文件名时，默认文件名的后缀跟随图片真实格式（`.jpg`）；用 `-o x.png` 时会转成 PNG。
+
+**不使用智能体。** 所有图片和视频生成都走 Flow 的完整编辑器（有"帧/素材"、比例、模型、时长的那个）。智能体开关开着时会自动关掉；刷新后仍是只有对话框的智能体界面，就直接报错（退出码 36），不会向智能体提交任何生成。需要时请在 Flow 网页里手动关闭"智能体"开关。
+
 ## 视频生成
 
 在 `flow.google.com` 上，`--duration` 只对 Omni 模型（`omni-flash`、`omni-1.2-flash`）有效。Veo（`veo-lite`、`veo-fast`、`veo-quality`）请省略 `--duration`，Flow 默认 8 秒。给 Veo 传入 `--duration` 会在提交前拒绝，错误是 `ConfigurationError`，退出码 11，不会真正提交生成。
 
 ```bash
-# 图生视频（flow.google.com，Veo 不传时长）
-flow-cli video i2v -i selfie.png --aspect 9:16 --model veo-fast --project <id> -o out.mp4 "<prompt>"
+# 图生视频：默认用「素材」模式 r2v --ref（可以传多张图，Omni 最多 7 张、Veo 最多 3 张）
+flow-cli video r2v "<prompt>" --ref a.png --ref b.png --aspect 9:16 --model veo-fast -o out.mp4
 
 # 文生视频（只有 Omni 模型可以指定时长）
 flow-cli video t2v "镜头缓慢推进清晨薄雾中的竹林" --model omni-flash --duration 4 --count 1 --aspect 16:9 -o output\bamboo.mp4
@@ -176,7 +194,7 @@ flow-cli video t2v "镜头缓慢推进清晨薄雾中的竹林" --model omni-fla
 # Omni 1.2 Flash：3 到 15 秒内任意整数秒
 flow-cli video t2v "镜头缓慢推进清晨薄雾中的竹林" --model omni-1.2-flash --duration 12 --count 1 --aspect 16:9 -o output\bamboo12.mp4
 
-# 首尾帧过渡（Veo 省略 --duration）
+# 首尾帧过渡：只有明确需要「首帧 + 尾帧」时才用 i2v（只能放这两张图，Veo 省略 --duration）
 flow-cli video i2v --initial-frame first.png --end-frame last.png "平滑的电影感转场" --model veo-fast --count 1 -o output\transition.mp4
 
 # 多参考图视频（Omni 模型可以指定时长）
@@ -200,74 +218,6 @@ Veo 在 `flow.google.com` 上省略 `--duration`，默认 8 秒。`omni-flash` �
 `video extend` 会把已有视频续接为一个 8 秒片段，并且必须使用拥有该媒体 ID 的项目。已经设置固定项目时，包装器会自动传入它。结果会作为 Flow 场景渲染到指定的 mp4 路径。迁移到新 Flow 网址的账号仍可能无法使用它。
 
 Flow 网页可能提供视频分辨率、视频编辑或放大选项，但当前 CLI 尚未开放这些入口，也不提供视频 360p 选择、视频编辑或 1080p/4K 视频放大控制。
-
-## 原有 Session Token 生图方式
-
-旧的 `flow-cli gen` 仍然保留：
-
-```bash
-flow-cli login --st "your-session-token"
-flow-cli models
-flow-cli credits
-flow-cli gen "a cinematic cat in neon city" -o output\cat.png
-flow-cli gen "convert to watercolor" -r input.jpg -u 2k -o output\watercolor.png
-```
-
-`-u` 支持 `none`、`2k` 和 `4k`。放大失败时会自动保存原图。
-
-## Token 插件
-
-仓库内的 `flow-token-updater` 可以把 Chrome 中的 Flow Session Token 同步到旧生图方式。
-
-### 1. 启动本地服务
-
-```bash
-python flow_token_server.py
-```
-
-默认地址是 `http://127.0.0.1:8765/token`，健康检查地址是 `http://127.0.0.1:8765/health`。
-
-### 2. 加载 Chrome 插件
-
-1. 打开 `chrome://extensions/`
-2. 启用开发者模式
-3. 点击“加载已解压的扩展程序”
-4. 选择仓库中的 `flow-token-updater` 目录
-
-插件首次安装会自动填入并保存 `http://127.0.0.1:8765/token`，同时检查服务是否在线。只有使用其他地址时才需要手动修改。
-
-Token 会保存到 `~/.flow-cli/token.json`。Session Token 变化后，旧生图链路缓存的账号状态会自动清空。
-
-## 配置
-
-旧生图链路的用户配置位于 `~/.flow-cli/config.toml`：
-
-```toml
-[flow]
-labs_base_url = "https://labs.google/fx/api"
-api_base_url = "https://aisandbox-pa.googleapis.com/v1"
-timeout = 120
-max_retries = 3
-
-[output]
-output_dir = "output"
-
-[captcha]
-method = "personal"
-personal_headless = false
-personal_timeout = 90
-personal_settle_seconds = 2.0
-
-[debug]
-enabled = false
-```
-
-`personal` 模式还需要：
-
-```bash
-py -m pip install playwright
-py -m playwright install chromium
-```
 
 ## 常见问题
 
@@ -293,20 +243,14 @@ py -m playwright install chromium
 
 在 `flow.google.com` 上给 Veo 传 `--duration` 会在提交前失败：`ConfigurationError`，退出码 11。去掉 `--duration`，使用默认 8 秒。只有 Omni 模型（`omni-flash`、`omni-1.2-flash`）接受这个参数。
 
-### 配置文件没有生效
-
-根目录的 `config.toml` 是模板。实际读取的是 `~/.flow-cli/config.toml`，也可以通过 `FLOW_CONFIG` 指定其他路径。
-
 ### 图片生成成功但没有保存
 
-确认输出目录可写且磁盘空间足够。旧生图链路下载失败时会自动切换下载方式；需要排查时可临时开启调试模式。
+确认输出目录可写且磁盘空间足够。2K 下载失败时会提示原因，并自动保存 1K 原图。
 
 ## 安全说明
 
-- 不要提交或公开 ST、AT、Cookie、登录配置和生成历史
-- 不要在聊天或截图中展示完整 Token
-- `~/.flow-cli/token.json` 和浏览器登录资料只应保存在本机
-- 插件的 Token 历史会保存在 Chrome 本地存储中，可随时在插件中清除
+- 不要提交或公开 Cookie、浏览器登录资料和生成历史
+- 浏览器登录资料只应保存在本机，不要在聊天或截图中展示
 
 ## 许可证
 

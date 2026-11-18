@@ -8,6 +8,7 @@ import io
 import json
 import re
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,7 @@ from PIL import Image
 from gflow_cli import auth as gflow_auth
 from gflow_cli import profile_store
 from gflow_cli.api.client import FlowApiClient
+from gflow_cli.api.transports.migrated_composer import MigratedComposer
 
 MIGRATED_PROJECT_URL = "https://flow.google.com/project/{project_id}"
 READY_ANCHOR = ".settings-trigger-button"
@@ -39,6 +41,7 @@ ASPECT_ICONS = {
     "3:4": "crop_portrait",
     "9:16": "crop_9_16",
 }
+UPSCALE_LEVELS = ("1k", "2k", "4k")
 _ALLOWED_IMAGE_HOSTS = {
     "flow.google.com",
     "flow-content.google",
@@ -59,6 +62,8 @@ class ImageRequest:
     profile: str | None
     project_id: str
     as_json: bool
+    upscale: str = "2k"
+    refs: tuple[Path, ...] = ()
 
 
 def _exact(text: str) -> re.Pattern[str]:
@@ -80,12 +85,33 @@ def _icon(page: Any, name: str) -> Any:
     return page.locator("mat-icon").filter(has_text=_exact(name))
 
 
-def _parser() -> argparse.ArgumentParser:
+def _upscale_level(value: str) -> str:
+    """旧写法 none 等同 1k，其余必须是 1k/2k/4k。"""
+    value = value.lower()
+    if value == "none":
+        return "1k"
+    if value not in UPSCALE_LEVELS:
+        raise argparse.ArgumentTypeError(f"请选择 {'/'.join(UPSCALE_LEVELS)}")
+    return value
+
+
+def _parser(mode: str = "t2i") -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="flow-cli image t2i",
-        description="在当前 Flow 网页中生成图片",
+        prog=f"flow-cli image {mode}",
+        description="在当前 Flow 网页中生成图片"
+        if mode == "t2i"
+        else "在当前 Flow 网页中用参考图生成图片（图生图）",
     )
     parser.add_argument("prompt", help="图片描述提示词")
+    if mode == "i2i":
+        parser.add_argument(
+            "--ref",
+            action="append",
+            type=Path,
+            required=True,
+            dest="refs",
+            help="参考图片文件，可重复传入多张",
+        )
     parser.add_argument(
         "--model",
         choices=tuple(MODEL_LABELS),
@@ -98,6 +124,16 @@ def _parser() -> argparse.ArgumentParser:
         default="9:16",
         help="图片画幅（默认: 9:16）",
     )
+    parser.add_argument(
+        "-u",
+        "--upscale",
+        type=_upscale_level,
+        default="2k",
+        metavar="{1k,2k,4k}",
+        help="下载尺寸，走图片详情页右上角的下载菜单：2k（默认，约 15 秒/张）、"
+        "1k（原始尺寸）、4k（需要 Flow 升级套餐）。所选尺寸取不到时退回 1k，"
+        "绝不保存网格缩略图",
+    )
     parser.add_argument("-n", "--count", type=int, choices=range(1, 5), default=1)
     parser.add_argument("-o", "--output", type=Path)
     parser.add_argument("--out", dest="out_dir", type=Path)
@@ -108,11 +144,23 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def parse_t2i_request(arguments: Sequence[str]) -> ImageRequest:
-    args = _parser().parse_args(list(arguments))
+    return _parse_request("t2i", arguments)
+
+
+def parse_i2i_request(arguments: Sequence[str]) -> ImageRequest:
+    return _parse_request("i2i", arguments)
+
+
+def _parse_request(mode: str, arguments: Sequence[str]) -> ImageRequest:
+    args = _parser(mode).parse_args(list(arguments))
     if not _PROJECT_ID_PATTERN.fullmatch(args.project):
         raise ValueError("项目 ID 格式不正确")
     if args.output is not None and args.count != 1:
         raise ValueError("使用 -o/--output 时只能生成 1 张；多张请改用 --out")
+    refs = tuple(getattr(args, "refs", None) or ())
+    for ref in refs:
+        if not ref.is_file():
+            raise ValueError(f"参考图片不存在: {ref}")
     return ImageRequest(
         prompt=args.prompt,
         model=args.model,
@@ -123,6 +171,8 @@ def parse_t2i_request(arguments: Sequence[str]) -> ImageRequest:
         profile=args.profile,
         project_id=args.project,
         as_json=args.as_json,
+        upscale=args.upscale,
+        refs=refs,
     )
 
 
@@ -189,17 +239,26 @@ def _save_image(data: bytes, output: Path) -> Path:
     return output
 
 
+def _follow_format(output: Path, data: bytes, request: ImageRequest) -> Path:
+    """没指定 -o 时，默认文件名跟随图片真实格式（2K 下载是 JPEG，不改成大体积 PNG）。"""
+    if request.output is not None:
+        return output
+    suffix = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp"}[_image_format(data)]
+    return output.with_suffix(suffix)
+
+
 class MigratedImageComposer:
     async def ensure_editor(self, page: Any, project_id: str) -> None:
-        target = MIGRATED_PROJECT_URL.format(project_id=project_id)
-        if not str(page.url).startswith(target):
-            await page.goto(target, wait_until="domcontentloaded", timeout=60_000)
-        try:
-            await page.locator(READY_ANCHOR).first.wait_for(
-                state="visible", timeout=30_000
+        """打开项目的完整编辑器。只用非智能体界面：智能体开关开着会自动关掉；
+        刷新后仍是只有对话框的智能体界面就直接报错，不去调用智能体生成。"""
+        kind = await MigratedComposer().ensure_editor_for(
+            page, project_id, needs_classic=True
+        )
+        if kind != "classic":
+            raise RuntimeError(
+                "Flow 现在给的是只有对话框的智能体界面；flow-cli 不使用智能体生成。"
+                "请在 Flow 网页里关闭「智能体」开关后重试"
             )
-        except Exception as error:
-            raise RuntimeError("新版 Flow 图片编辑器没有正常打开") from error
         await page.wait_for_timeout(1_000)
 
     async def apply_settings(self, page: Any, request: ImageRequest) -> None:
@@ -277,12 +336,25 @@ class MigratedImageComposer:
             raise RuntimeError("新版 Flow 图片设置面板没有收起")
 
     async def generate(self, page: Any, request: ImageRequest) -> list[bytes]:
-        before = await self._image_sources(page)
         composer = page.locator(COMPOSER).first
-        await composer.click(timeout=5_000)
-        await page.keyboard.press("Control+A")
-        await page.keyboard.press("Backspace")
-        await page.keyboard.insert_text(request.prompt)
+        if request.refs:
+            # 上传参考图会往素材列表里加图，所以"生成前"的快照要在附加参考图之后拍
+            attached = await MigratedComposer().attach_references(
+                page, request.project_id, request.refs
+            )
+            chips = await MigratedComposer().read_chips(page)
+            if len(chips) != len(attached):
+                raise RuntimeError(
+                    f"上传了 {len(attached)} 张参考图，但提示框里只绑定了 {len(chips)} 张"
+                )
+            before = await self._image_sources(page)
+            await page.keyboard.insert_text(request.prompt)
+        else:
+            before = await self._image_sources(page)
+            await composer.click(timeout=5_000)
+            await page.keyboard.press("Control+A")
+            await page.keyboard.press("Backspace")
+            await page.keyboard.insert_text(request.prompt)
         await page.wait_for_timeout(300)
 
         submit = page.locator("button").filter(has=_icon(page, "arrow_forward")).first
@@ -291,15 +363,68 @@ class MigratedImageComposer:
         await submit.click(timeout=5_000)
 
         sources = await self._wait_for_new_sources(page, before, request.count)
-        images: list[bytes] = []
-        for source in sources:
-            response = await page.request.get(source, timeout=120_000, max_redirects=0)
-            if response.status >= 300:
-                raise RuntimeError(f"图片下载失败: HTTP {response.status}")
-            body = await response.body()
-            _image_format(body)
-            images.append(body)
-        return images
+        return [
+            await self.download_from_menu(page, source, request.upscale)
+            for source in sources
+        ]
+
+    async def download_from_menu(self, page: Any, source: str, level: str) -> bytes:
+        """只通过图片详情页右上角的下载菜单（1K/2K/4K）取图，不保存网格缩略图。
+
+        所选尺寸取不到（例如 4K 没开通）时退回菜单里的 1K 原始尺寸；1K 也取不到就报错。
+        """
+        try:
+            return await self._menu_download(page, source, level)
+        except Exception as error:  # noqa: BLE001
+            if level == "1k":
+                raise RuntimeError(f"下载菜单取图失败: {error}") from error
+            print(
+                f"提示: {level.upper()} 下载失败，改取 1K 原始尺寸: {error}",
+                file=sys.stderr,
+            )
+            return await self._menu_download(page, source, "1k")
+
+    async def _menu_download(self, page: Any, source: str, level: str) -> bytes:
+        """打开图片详情页，用"下载"菜单取指定尺寸，再回到素材列表。
+
+        菜单项靠 "1K"/"2K"/"4K" 文字定位，不依赖界面语言。4K 在未升级的账号上是
+        灰色的（旁边有"升级"按钮），这里会明确报错。
+        """
+        label = level.upper()
+        tile = page.locator(f'img[src="{source}"]').first
+        if not await tile.count():
+            raise RuntimeError("在素材列表中找不到刚生成的图片")
+        await tile.click(timeout=5_000)
+        try:
+            download = page.locator("button").filter(has=_icon(page, "download")).first
+            await download.wait_for(state="visible", timeout=15_000)
+            await download.click(timeout=5_000)
+            item = page.locator(MENU_ITEM).filter(has_text=re.compile(rf"\b{label}\b")).first
+            try:
+                await item.wait_for(state="visible", timeout=8_000)
+            except Exception as error:
+                raise RuntimeError(f"下载菜单里没有 {label} 选项") from error
+            if await item.is_disabled() or await item.locator("button").count():
+                raise RuntimeError(f"当前账号还不能下载 {label}（需要在 Flow 升级套餐）")
+            async with page.expect_download(timeout=180_000) as info:
+                await item.click(timeout=5_000)
+            download_event = await info.value
+            with tempfile.TemporaryDirectory(prefix="flow-cli-") as folder:
+                saved = Path(folder) / "download"
+                await download_event.save_as(saved)
+                data = saved.read_bytes()
+            _image_format(data)
+            return data
+        finally:
+            await self._back_to_grid(page)
+
+    async def _back_to_grid(self, page: Any) -> None:
+        await page.keyboard.press("Escape")
+        back = page.locator("button").filter(has=_icon(page, "arrow_back")).first
+        if await back.count() and await back.is_visible():
+            await back.click(timeout=5_000)
+        await page.locator(COMPOSER).first.wait_for(state="visible", timeout=15_000)
+        await page.wait_for_timeout(800)
 
     async def _image_sources(self, page: Any) -> set[str]:
         sources: set[str] = set()
@@ -343,14 +468,22 @@ async def generate_images(request: ImageRequest) -> list[Path]:
         await composer.apply_settings(page, request)
         image_data = await composer.generate(page, request)
     return [
-        _save_image(data, output)
+        _save_image(data, _follow_format(output, data, request))
         for data, output in zip(image_data, outputs, strict=True)
     ]
 
 
 def run_migrated_t2i(arguments: Sequence[str]) -> int:
+    return _run_migrated("t2i", arguments)
+
+
+def run_migrated_i2i(arguments: Sequence[str]) -> int:
+    return _run_migrated("i2i", arguments)
+
+
+def _run_migrated(mode: str, arguments: Sequence[str]) -> int:
     try:
-        request = parse_t2i_request(arguments)
+        request = _parse_request(mode, arguments)
         paths = asyncio.run(generate_images(request))
     except SystemExit as error:
         return int(error.code or 0)
